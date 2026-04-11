@@ -721,7 +721,20 @@ function HistoryList({ expenses, onEdit }: { expenses: Expense[]; onEdit: (expen
           </div>
           <div className="space-y-1.5">
             {grouped[ym].map((exp) => (
-              <div key={exp.id} className="bg-snap-50/50 rounded-xl p-3 flex items-center gap-2">
+              <div
+                key={exp.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`Edit expense: ${exp.merchant || exp.category}`}
+                onClick={() => onEdit(exp)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onEdit(exp);
+                  }
+                }}
+                className="bg-snap-50/50 rounded-xl p-3 flex items-center gap-2 cursor-pointer text-left w-full active:bg-snap-100/80 transition-colors"
+              >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-snap-800 truncate">{exp.merchant || exp.category}</p>
                   <div className="flex gap-2 mt-0.5 flex-wrap">
@@ -731,9 +744,6 @@ function HistoryList({ expenses, onEdit }: { expenses: Expense[]; onEdit: (expen
                   </div>
                 </div>
                 <span className="text-sm font-bold text-snap-600 whitespace-nowrap">{exp.total.toFixed(2)}</span>
-                <button onClick={() => onEdit(exp)} className="p-1.5 rounded-lg text-snap-300 active:bg-snap-100 transition-colors" aria-label="Edit expense">
-                  &#9998;
-                </button>
               </div>
             ))}
           </div>
