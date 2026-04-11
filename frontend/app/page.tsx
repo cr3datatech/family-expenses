@@ -406,7 +406,20 @@ function ExpensesPage({
         {expenses.length > 0 ? (
           <div className="space-y-2">
             {expenses.map((exp) => (
-              <div key={exp.id} className="bg-white rounded-[14px] p-3 shadow-[0_1px_4px_rgba(34,197,94,0.08)]">
+              <div
+                key={exp.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`Edit expense: ${exp.merchant || exp.category}`}
+                onClick={() => setEditingExpense(exp)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setEditingExpense(exp);
+                  }
+                }}
+                className="bg-white rounded-[14px] p-3 shadow-[0_1px_4px_rgba(34,197,94,0.08)] cursor-pointer text-left w-full active:bg-snap-50/90 transition-colors"
+              >
                 <div className="flex justify-between items-start">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-snap-800 truncate">
@@ -424,7 +437,17 @@ function ExpensesPage({
                     <span className="text-sm font-bold text-snap-600 whitespace-nowrap">
                       {exp.total.toFixed(2)} {exp.currency}
                     </span>
-                    <button onClick={() => handleDelete(exp.id)} className="text-skin-secondary text-lg leading-none">&times;</button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(exp.id);
+                      }}
+                      className="text-skin-secondary text-lg leading-none px-1 -mr-1 rounded-lg hover:bg-snap-100"
+                      aria-label="Delete expense"
+                    >
+                      &times;
+                    </button>
                   </div>
                 </div>
               </div>
@@ -767,6 +790,25 @@ function EditExpenseForm({
       <FormField label="Shop / Merchant">
         <input type="text" value={merchant} onChange={(e) => setMerchant(e.target.value)} placeholder="Shop name" className="form-input" />
       </FormField>
+      {expense.items && expense.items.length > 0 && (
+        <div className="bg-snap-100 rounded-xl p-3 text-xs text-skin-primary">
+          <p className="font-semibold mb-1">Line items</p>
+          <div className="mt-1 space-y-0.5 max-h-[40vh] overflow-y-auto">
+            {expense.items.map((item, i) => (
+              <div key={i} className="flex justify-between gap-2">
+                <span className="min-w-0 break-words">
+                  {item.qty && item.qty > 1 ? `${item.qty}× ${item.name}` : item.name}
+                </span>
+                <span className="shrink-0">
+                  {item.qty && item.qty > 1 && item.unit_price != null
+                    ? `${item.unit_price.toFixed(2)} → ${item.amount.toFixed(2)}`
+                    : item.amount.toFixed(2)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <FormField label="Total">
         <input type="number" step="0.01" value={total} onChange={(e) => setTotal(e.target.value)} placeholder="Amount" required className="form-input" />
       </FormField>
