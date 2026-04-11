@@ -1,6 +1,6 @@
 """Pydantic models for Snap Expenses."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 
 
@@ -22,6 +22,10 @@ class ExpenseCreate(BaseModel):
     note: Optional[str] = None
     receipt_photo_path: Optional[str] = None
     ai_extracted: bool = False
+    user_id: Optional[int] = Field(
+        default=None,
+        description="Superuser only: attribute expense to another user",
+    )
 
 
 class ExpenseUpdate(BaseModel):
@@ -33,6 +37,10 @@ class ExpenseUpdate(BaseModel):
     category: Optional[str] = None
     card: Optional[str] = None
     note: Optional[str] = None
+    user_id: Optional[int] = Field(
+        default=None,
+        description="Superuser only: change attributed user",
+    )
 
 
 class ExpenseResponse(BaseModel):
@@ -48,6 +56,8 @@ class ExpenseResponse(BaseModel):
     receipt_photo_path: Optional[str]
     ai_extracted: bool
     created_at: str
+    user_id: int
+    attributed_username: str
 
 
 class ReceiptScan(BaseModel):
@@ -64,3 +74,25 @@ class CategorizeRequest(BaseModel):
 
 class CategorizeResponse(BaseModel):
     category: str
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    is_superuser: bool = False
+
+
+class UserUpdate(BaseModel):
+    password: Optional[str] = None
+    is_superuser: Optional[bool] = None
+
+
+class UserPublic(BaseModel):
+    id: int
+    username: str
+    is_superuser: bool

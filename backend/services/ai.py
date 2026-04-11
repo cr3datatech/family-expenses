@@ -19,6 +19,29 @@ logger = logging.getLogger(__name__)
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
 
+
+def _openai_error_detail(exc: BaseException) -> str:
+    """Extract a user-facing message from an OpenAI SDK error (401 scope, billing, etc.)."""
+    body = getattr(exc, "body", None)
+    if isinstance(body, dict):
+        err = body.get("error")
+        if isinstance(err, dict) and err.get("message"):
+            return str(err["message"])
+    resp = getattr(exc, "response", None)
+    if resp is not None:
+        try:
+            j = resp.json()
+            if isinstance(j, dict):
+                inner = j.get("error")
+                if isinstance(inner, dict) and inner.get("message"):
+                    return str(inner["message"])
+        except Exception:
+            pass
+    text = str(exc).strip()
+    if len(text) > 1200:
+        return text[:1200] + "…"
+    return text or "OpenAI request failed."
+
 CURRENCY = os.getenv("SNAP_CURRENCY", "EUR")
 
 # Formats GPT-4o-mini vision API accepts
@@ -74,9 +97,9 @@ def scan_receipt(image_data: bytes, media_type: str) -> dict:
             }],
             max_tokens=512,
         )
-    except Exception:
+    except Exception as e:
         logger.exception("OpenAI API call failed for receipt scan")
-        raise ValueError("Receipt scan failed - could not reach AI service")
+        raise ValueError(_openai_error_detail(e)) from e
 
     raw = response.choices[0].message.content.strip()
     if raw.startswith("```"):
@@ -94,21 +117,25 @@ def scan_receipt(image_data: bytes, media_type: str) -> dict:
 
 def categorize_expense(description: str) -> str:
     """Categorize an expense description into a short category label."""
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{
-            "role": "user",
-            "content": (
-                f"Categorize this expense in 1-2 words, Title Case. "
-                f"Prefer these categories: Groceries, Eating Out, Transport, Entertainment, "
-                f"Health, Utilities, Shopping, Subscriptions, Travel, Coffee, Household, "
-                f"Rent, Investments, Insurance, Gifts, Education, Other. "
-                f'Use "Eating Out" for all restaurants/cafes/takeaway (never "Dining" or "Restaurant"). '
-                f"You may create a new category if none fit, but keep it Title Case and consistent. "
-                f"Reply with ONLY the category, nothing else.\n\n"
-                f"Expense: {description}"
-            ),
-        }],
-        max_tokens=10,
-    )
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{
+                "role": "user",
+                "content": (
+                    f"Categorize this expense in 1-2 words, Title Case. "
+                    f"Prefer these categories: Groceries, Eating Out, Transport, Entertainment, "
+                    f"Health, Utilities, Shopping, Subscriptions, Travel, Coffee, Household, "
+                    f"Rent, Investments, Insurance, Gifts, Education, Other. "
+                    f'Use "Eating Out" for all restaurants/cafes/takeaway (never "Dining" or "Restaurant"). '
+                    f"You may create a new category if none fit, but keep it Title Case and consistent. "
+                    f"Reply with ONLY the category, nothing else.\n\n"
+                    f"Expense: {description}"
+                ),
+            }],
+            max_tokens=10,
+        )
+    except Exception as e:
+        logger.exception("OpenAI API call failed for categorization")
+        raise ValueError(_openai_error_detail(e)) from e
     return response.choices[0].message.content.strip().title()

@@ -72,6 +72,17 @@ OPENAI_API_KEY=sk-...your-real-key...
 
 **Optional — HEIC (iPhone) photos:** For reliable HEIC support, install in the same venv: `pip install pillow-heif`.
 
+**Login — first superuser:** The API uses cookie sessions (`/api/auth/*`). When the **`users` table is empty**, the app creates the first admin from environment variables on startup (then restart after setting them):
+
+```bash
+SNAP_BOOTSTRAP_ADMIN_USER=yourname
+SNAP_BOOTSTRAP_ADMIN_PASSWORD=your-strong-password
+```
+
+Uncomment or add these in `.env`, restart `./run.sh`, then sign in on the web UI with that username and password. After that, you can create other users under **Users** (superuser only). Existing databases upgraded from older versions get a `user_id` column on expenses; unattributed rows are assigned to the first user in the table.
+
+**Production:** Set `SNAP_COOKIE_SECURE=1` when serving over HTTPS so session cookies are not sent on plain HTTP.
+
 ### 5. Start the application
 
 From the **project root**, with the venv activated:
@@ -114,10 +125,14 @@ All settings are in `.env`:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OPENAI_API_KEY` | (required) | Your OpenAI API key |
+| `OPENAI_API_KEY` | (required) | Your OpenAI API key. **Restricted keys** must include permission to call models (e.g. scope `model.request`); otherwise scans return 401. Prefer a normal secret key or edit the key’s permissions in the OpenAI dashboard. |
 | `SNAP_CURRENCY` | `EUR` | Default currency |
-| `SNAP_CARDS` | `Cash,Debit Card,Credit Card` (use quotes in `.env` if values contain spaces) | Payment methods (comma-separated) |
+| `SNAP_CARDS` | `Credit Card,Debit Card,ePassi,Cash` (use quotes in `.env` if values contain spaces) | Payment methods (comma-separated); first item is the default in the UI |
 | `SNAP_DB_PATH` | `./data/snap.db` | SQLite database file |
+| `SNAP_BOOTSTRAP_ADMIN_USER` | (unset) | If `users` is empty, create this superuser on startup |
+| `SNAP_BOOTSTRAP_ADMIN_PASSWORD` | (unset) | Password for bootstrap admin |
+| `SNAP_SESSION_MAX_AGE_SECONDS` | `1209600` (14d) | Session cookie lifetime |
+| `SNAP_COOKIE_SECURE` | `0` | Set `1` with HTTPS |
 
 ### Custom payment methods
 
@@ -201,29 +216,52 @@ The app is mobile-first. “Scan a receipt” uses a file input with `capture="e
 
 ## API endpoints
 
-Base path: `/api/expenses`.
+Expense and user routes expect a **session cookie** from `POST /api/auth/login` (use `credentials: 'include'` in the browser).
+
+### Auth
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/expenses/` | List expenses (optional filters: `year` + `month`, `card` — combinable) |
-| GET | `/api/expenses/summary/{year}/{month}` | Monthly totals (`by_category`, `by_card`) |
+| POST | `/api/auth/login` | JSON `username`, `password` — sets cookie |
+| POST | `/api/auth/logout` | Clears session and cookie |
+| GET | `/api/auth/me` | Current user or 401 |
+
+### Users (superuser)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/users/` | List users |
+| POST | `/api/users/` | Create user |
+| PATCH | `/api/users/{id}` | Password / superuser flag |
+| DELETE | `/api/users/{id}` | Delete (if no attributed expenses) |
+
+### Expenses
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/expenses/` | All expenses (optional `year`+`month`, `card`) |
+| GET | `/api/expenses/summary/{year}/{month}` | Monthly totals |
 | GET | `/api/expenses/cards` | Payment methods |
-| POST | `/api/expenses/` | Create expense (JSON) |
-| POST | `/api/expenses/scan` | Scan receipt — `multipart/form-data`, field name `photo` |
-| POST | `/api/expenses/categorize` | JSON `{"description":"..."}` |
-| PUT | `/api/expenses/{id}` | Update expense |
-| DELETE | `/api/expenses/{id}` | Delete expense |
+| POST | `/api/expenses/` | Create (`user_id` optional for superuser) |
+| POST | `/api/expenses/scan` | `multipart/form-data`, field `photo` |
+| POST | `/api/expenses/categorize` | Auto-categorize text |
+| PUT | `/api/expenses/{id}` | Update (`user_id` for superuser) |
+| DELETE | `/api/expenses/{id}` | Delete |
 
 ## Project structure
 
 ```
-expenses/
+snap-expenses/
   backend/
-    app.py                 # FastAPI + static mount of frontend/out
+    app.py
     database.py
+    deps.py
     models.py
+    routers/auth.py
+    routers/users.py
     routers/expenses.py
     services/ai.py
+    services/passwords.py
   frontend/
     app/page.tsx
     components/

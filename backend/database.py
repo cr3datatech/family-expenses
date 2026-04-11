@@ -4,6 +4,8 @@ import os
 import sqlite3
 from pathlib import Path
 
+from backend.services.passwords import hash_password
+
 DB_PATH = Path(os.getenv("SNAP_DB_PATH", str(Path(__file__).parent.parent / "data" / "snap.db")))
 
 SCHEMA = """
@@ -35,12 +37,67 @@ def get_connection(db_path: str | Path | None = None) -> sqlite3.Connection:
     return conn
 
 
-def init_db(db_path: str | Path | None = None) -> None:
-    """Initialize the database schema."""
-    conn = get_connection(db_path)
+def _migrate(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
-    conn.commit()
-    conn.close()
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            is_superuser INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS sessions (
+            id TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            expires_at TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+        """
+    )
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(expenses)").fetchall()]
+    if "user_id" not in cols:
+        conn.execute("ALTER TABLE expenses ADD COLUMN user_id INTEGER REFERENCES users(id)")
+
+
+def _bootstrap_admin(conn: sqlite3.Connection) -> None:
+    n = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    if n > 0:
+        return
+    user = os.getenv("SNAP_BOOTSTRAP_ADMIN_USER", "").strip()
+    pw = os.getenv("SNAP_BOOTSTRAP_ADMIN_PASSWORD", "")
+    if not user or not pw:
+        return
+    conn.execute(
+        "INSERT INTO users (username, password_hash, is_superuser) VALUES (?, ?, 1)",
+        (user, hash_password(pw)),
+    )
+
+
+def _backfill_expense_user_ids(conn: sqlite3.Connection) -> None:
+    first = conn.execute("SELECT id FROM users ORDER BY id LIMIT 1").fetchone()
+    if first is None:
+        return
+    uid = first[0]
+    conn.execute("UPDATE expenses SET user_id = ? WHERE user_id IS NULL", (uid,))
+
+
+def init_db(db_path: str | Path | None = None) -> None:
+    """Initialize the database schema and run migrations."""
+    conn = get_connection(db_path)
+    try:
+        _migrate(conn)
+        _bootstrap_admin(conn)
+        conn.commit()
+        _backfill_expense_user_ids(conn)
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def get_db():
