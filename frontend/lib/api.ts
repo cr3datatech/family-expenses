@@ -41,6 +41,7 @@ export interface User {
   id: number;
   username: string;
   is_superuser: boolean;
+  email: string | null;
 }
 
 export interface ExpenseItem {
@@ -76,6 +77,7 @@ export interface ExpenseCreate {
   category?: string;
   card: string;
   note?: string;
+  receipt_photo_path?: string;
   user_id?: number;
 }
 
@@ -94,6 +96,7 @@ export interface ReceiptScanResult {
   items: ExpenseItem[];
   total: number;
   category: string;
+  receipt_path: string | null;
 }
 
 export const api = {
@@ -121,7 +124,7 @@ export const api = {
 
   usersList: () => request<User[]>("/users/"),
 
-  createUser: (body: { username: string; password: string; is_superuser: boolean }) =>
+  createUser: (body: { username: string; password: string; is_superuser: boolean; email: string }) =>
     request<User>("/users/", {
       method: "POST",
       body: JSON.stringify(body),
@@ -130,7 +133,7 @@ export const api = {
   deleteUser: (id: number) =>
     request<void>(`/users/${id}`, { method: "DELETE" }),
 
-  updateUser: (id: number, body: { password?: string; is_superuser?: boolean }) =>
+  updateUser: (id: number, body: { password?: string; is_superuser?: boolean; email?: string }) =>
     request<User>(`/users/${id}`, {
       method: "PATCH",
       body: JSON.stringify(body),
@@ -156,8 +159,11 @@ export const api = {
   update: (id: number, data: Partial<ExpenseCreate>) =>
     request<Expense>(`/expenses/${id}`, { method: "PUT", body: JSON.stringify(data) }),
 
-  delete: (id: number) =>
-    request<void>(`/expenses/${id}`, { method: "DELETE" }),
+  delete: (id: number, deleteArchive = false) =>
+    request<void>(`/expenses/${id}?delete_archive=${deleteArchive}`, { method: "DELETE" }),
+
+  deleteArchiveFile: (filename: string, deleteExpense = false) =>
+    request<void>(`/expenses/archive/${encodeURIComponent(filename)}?delete_expense=${deleteExpense}`, { method: "DELETE" }),
 
   scan: async (formData: FormData) => {
     const res = await fetch(`${BASE}/expenses/scan`, {
@@ -176,5 +182,19 @@ export const api = {
     request<{ category: string }>("/expenses/categorize", {
       method: "POST",
       body: JSON.stringify({ description }),
+    }),
+
+  search: (q: string) => request<Expense[]>(`/expenses/search?q=${encodeURIComponent(q)}`),
+
+  forgotPassword: (email: string) =>
+    request<{ ok: boolean }>("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+
+  resetPassword: (token: string, new_password: string) =>
+    request<{ ok: boolean; username: string }>("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, new_password }),
     }),
 };

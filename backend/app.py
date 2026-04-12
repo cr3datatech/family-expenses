@@ -33,6 +33,11 @@ app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(expenses.router)
 
+# Mount receipt archive so images are directly accessible
+receipts_dir = Path(__file__).parent.parent / "data" / "receipts"
+receipts_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/receipts", StaticFiles(directory=str(receipts_dir)), name="receipts")
+
 # Mount static frontend if built
 frontend_out = Path(__file__).parent.parent / "frontend" / "out"
 if frontend_out.exists():

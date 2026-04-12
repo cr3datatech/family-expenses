@@ -66,6 +66,7 @@ class ReceiptScan(BaseModel):
     items: list[ExpenseItem]
     total: float
     category: str
+    receipt_path: Optional[str] = None
 
 
 class CategorizeRequest(BaseModel):
@@ -85,14 +86,26 @@ class UserCreate(BaseModel):
     username: str
     password: str
     is_superuser: bool = False
+    email: str
 
 
 class UserUpdate(BaseModel):
     password: Optional[str] = None
     is_superuser: Optional[bool] = None
+    email: Optional[str] = None
 
 
 class UserPublic(BaseModel):
     id: int
     username: str
     is_superuser: bool
+    email: Optional[str] = None
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str

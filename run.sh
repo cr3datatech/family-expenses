@@ -4,6 +4,11 @@ set -e
 
 cd "$(dirname "$0")"
 
+# Activate virtualenv if present
+if [ -f venv/bin/activate ]; then
+    source venv/bin/activate
+fi
+
 # Load environment
 if [ -f .env ]; then
     set -a; source .env; set +a

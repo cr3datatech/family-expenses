@@ -15,10 +15,10 @@ router = APIRouter(prefix="/api/users", tags=["users"])
 @router.get("/", response_model=list[UserPublic])
 def list_users(_su: SuperuserDep, db: sqlite3.Connection = Depends(get_db)):
     rows = db.execute(
-        "SELECT id, username, is_superuser FROM users ORDER BY username"
+        "SELECT id, username, is_superuser, email FROM users ORDER BY username"
     ).fetchall()
     return [
-        UserPublic(id=r["id"], username=r["username"], is_superuser=bool(r["is_superuser"]))
+        UserPublic(id=r["id"], username=r["username"], is_superuser=bool(r["is_superuser"]), email=r["email"])
         for r in rows
     ]
 
@@ -31,21 +31,17 @@ def create_user(
 ):
     try:
         cursor = db.execute(
-            "INSERT INTO users (username, password_hash, is_superuser) VALUES (?, ?, ?)",
-            (body.username.strip(), hash_password(body.password), 1 if body.is_superuser else 0),
+            "INSERT INTO users (username, password_hash, is_superuser, email) VALUES (?, ?, ?, ?)",
+            (body.username.strip(), hash_password(body.password), 1 if body.is_superuser else 0, body.email),
         )
         db.commit()
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=409, detail="Username already exists")
     row = db.execute(
-        "SELECT id, username, is_superuser FROM users WHERE id = ?",
+        "SELECT id, username, is_superuser, email FROM users WHERE id = ?",
         (cursor.lastrowid,),
     ).fetchone()
-    return UserPublic(
-        id=row["id"],
-        username=row["username"],
-        is_superuser=bool(row["is_superuser"]),
-    )
+    return UserPublic(id=row["id"], username=row["username"], is_superuser=bool(row["is_superuser"]), email=row["email"])
 
 
 @router.patch("/{user_id}", response_model=UserPublic)
@@ -64,6 +60,8 @@ def update_user(
     updates: dict = {}
     if body.password is not None:
         updates["password_hash"] = hash_password(body.password)
+    if body.email is not None:
+        updates["email"] = body.email.strip() or None
     if body.is_superuser is not None:
         if not body.is_superuser and existing["is_superuser"]:
             others = db.execute(
@@ -86,13 +84,9 @@ def update_user(
         db.commit()
 
     row = db.execute(
-        "SELECT id, username, is_superuser FROM users WHERE id = ?", (user_id,)
+        "SELECT id, username, is_superuser, email FROM users WHERE id = ?", (user_id,)
     ).fetchone()
-    return UserPublic(
-        id=row["id"],
-        username=row["username"],
-        is_superuser=bool(row["is_superuser"]),
-    )
+    return UserPublic(id=row["id"], username=row["username"], is_superuser=bool(row["is_superuser"]), email=row["email"])
 
 
 @router.delete("/{user_id}", status_code=204)

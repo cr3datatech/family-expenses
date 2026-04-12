@@ -1,15 +1,41 @@
-# Snap Expenses
+# Receipts
 
-AI-powered expense tracker with receipt scanning. Snap a photo of your receipt and the AI extracts the merchant, items, total, and category automatically. Also supports manual entry, editing, history, and monthly summaries.
+AI-powered expense tracker with receipt scanning. Snap or upload a photo of your receipt and the AI extracts the merchant, items, total, and category automatically. Also supports manual entry, editing, history, monthly summaries, and full-text search.
 
 ## Features
 
-- **Receipt scanning** - Take a photo, AI extracts line items, merchant, total, and category
-- **Manual entry** - Quick form with auto-categorization
-- **Monthly summary** - See spending breakdown by category
-- **History** - Browse all past expenses grouped by month
-- **Edit & delete** - Modify or remove any expense
-- **Configurable** - Set your own payment methods and currency
+- **Receipt scanning** — On mobile: two buttons — **Scan** (opens camera) and **Upload** (opens photo library). On desktop: a single **Upload receipt** button. AI extracts line items, merchant, total, and category.
+- **Receipt archive** — The image is saved to `data/receipts/archive/` with a descriptive filename when the expense is confirmed. Cancelled scans are not archived.
+- **Manual entry** — Full form matching the scan review: date, merchant, category (dropdown), line items (name × qty × unit price), total, card, note.
+- **Search** — Full-text search across merchant, category, date, card, note, and line items. Results open directly in the edit modal.
+- **Monthly summary** — Spending breakdown by category for the current month.
+- **History** — Browse all past expenses grouped by month; click any row to edit.
+- **Edit & delete** — Edit any field; delete with optional archive image removal. Delete requires confirmation and (if a receipt image exists) asks whether to remove the image too. Superuser only.
+- **Configurable** — Set your own payment methods and currency via `.env`.
+
+## Receipt archive
+
+When an expense with a scanned receipt is saved, the image is moved from staging to `data/receipts/archive/` with a descriptive filename:
+
+```
+yyyymmdd_<category>_<merchant>_<username>.<ext>
+```
+
+Examples:
+```
+20260412_groceries_albert_heijn_craig.jpg
+20260411_eating_out_mcdonalds_sara.jpg
+20260408_coffee_starbucks_craig.jpg
+```
+
+- **`yyyymmdd`** — purchase date from the receipt (not upload timestamp)
+- **`<category>`** — AI-assigned category (e.g. `groceries`, `eating_out`, `coffee`)
+- **`<merchant>`** — shop name extracted from the receipt
+- **`<username>`** — user who saved the expense
+- Filename collisions get a counter suffix (`_2`, `_3`, …)
+- If the scan is cancelled, the temporary file in `data/receipts/tmp/` is left to age out — it is never promoted to the archive
+
+The relative path (`receipts/archive/<filename>`) is stored in `receipt_photo_path` on the expense record and shown as a clickable link in the edit modal.
 
 ## Setup and run (exact steps)
 
@@ -98,7 +124,7 @@ Open **[http://localhost:8090](http://localhost:8090)**.
 
 - If the UI is missing but the API works, confirm `frontend/out` exists (step 3).
 - API browser: **[http://localhost:8090/docs](http://localhost:8090/docs)**.
-- If you see **“Address already in use”** on 8090, stop the other process using that port or pick another port by changing `run.sh` and the URL accordingly.
+- If you see **"Address already in use"** on 8090, stop the other process using that port or pick another port by changing `run.sh` and the URL accordingly.
 
 **Manual start** (equivalent to activating the venv and then running `run.sh`):
 
@@ -125,7 +151,7 @@ All settings are in `.env`:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OPENAI_API_KEY` | (required) | Your OpenAI API key. **Restricted keys** must include permission to call models (e.g. scope `model.request`); otherwise scans return 401. Prefer a normal secret key or edit the key’s permissions in the OpenAI dashboard. |
+| `OPENAI_API_KEY` | (required) | Your OpenAI API key. **Restricted keys** must include permission to call models (e.g. scope `model.request`); otherwise scans return 401. Prefer a normal secret key or edit the key's permissions in the OpenAI dashboard. |
 | `SNAP_CURRENCY` | `EUR` | Default currency |
 | `SNAP_CARDS` | `Credit Card,Debit Card,ePassi,Cash` (use quotes in `.env` if values contain spaces) | Payment methods (comma-separated); first item is the default in the UI |
 | `SNAP_DB_PATH` | `./data/snap.db` | SQLite database file |
@@ -212,7 +238,7 @@ git remote -v
 
 ## Mobile use
 
-The app is mobile-first. “Scan a receipt” uses a file input with `capture="environment"` so supported mobile browsers can open the camera. For a home-screen shortcut: **iOS Safari** → Share → Add to Home Screen; **Android Chrome** → Menu → Add to Home Screen.
+The app is mobile-first. On mobile, two buttons appear: **Scan** (uses `capture="environment"` to open the camera) and **Upload** (opens the photo library). On desktop a single **Upload receipt** button appears. For a home-screen shortcut: **iOS Safari** → Share → Add to Home Screen; **Android Chrome** → Menu → Add to Home Screen.
 
 ## API endpoints
 
@@ -241,12 +267,15 @@ Expense and user routes expect a **session cookie** from `POST /api/auth/login` 
 |--------|----------|-------------|
 | GET | `/api/expenses/` | All expenses (optional `year`+`month`, `card`) |
 | GET | `/api/expenses/summary/{year}/{month}` | Monthly totals |
+| GET | `/api/expenses/search?q=` | Full-text search across all fields |
 | GET | `/api/expenses/cards` | Payment methods |
-| POST | `/api/expenses/` | Create (`user_id` optional for superuser) |
-| POST | `/api/expenses/scan` | `multipart/form-data`, field `photo` |
+| GET | `/api/expenses/archive` | Archive file list with expense-link flags |
+| POST | `/api/expenses/` | Create; moves staged receipt to archive if present |
+| POST | `/api/expenses/scan` | `multipart/form-data`, field `photo`; stages image, returns AI data + `receipt_path` |
 | POST | `/api/expenses/categorize` | Auto-categorize text |
 | PUT | `/api/expenses/{id}` | Update (`user_id` for superuser) |
-| DELETE | `/api/expenses/{id}` | Delete |
+| DELETE | `/api/expenses/{id}` | Delete; `?delete_archive=true` also removes the image |
+| DELETE | `/api/expenses/archive/{filename}` | Delete archive file; `?delete_expense=true` also removes the expense record |
 
 ## Project structure
 
@@ -264,16 +293,19 @@ snap-expenses/
     services/passwords.py
   frontend/
     app/page.tsx
-    components/
+    app/icon.svg              # favicon
+    components/PhotoCapture.tsx
     lib/api.ts
     lib/dates.ts
-    next.config.ts         # static export → out/
-  frontend/out/            # produced by `npm run build` (not always in git)
+    next.config.ts            # static export → out/
+  frontend/out/               # produced by `npm run build` (not always in git)
   data/
-    snap.db                # SQLite database (created at runtime)
-    receipts/              # uploaded receipt photos (created at runtime)
+    snap.db                   # SQLite database (created at runtime)
+    receipts/
+      tmp/                    # staging area for scanned images (pre-confirmation)
+      archive/                # confirmed receipt images (created at runtime)
   .env.example
-  .python-version          # 3.12.3 for pyenv
+  .python-version             # 3.12.3 for pyenv
   requirements.txt
   run.sh
 ```

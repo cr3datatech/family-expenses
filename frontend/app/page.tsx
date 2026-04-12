@@ -80,10 +80,34 @@ export default function HomePage() {
 
 function AuthGate() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
+  const [resetToken, setResetToken] = useState<string | null>(null);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("reset_token");
+    if (token) {
+      setResetToken(token);
+      // Remove token from URL without reload
+      const url = new URL(window.location.href);
+      url.searchParams.delete("reset_token");
+      window.history.replaceState({}, "", url.toString());
+      setUser(null);
+      return;
+    }
     api.me().then(setUser).catch(() => setUser(null));
   }, []);
+
+  if (resetToken) {
+    return (
+      <ResetPasswordForm
+        token={resetToken}
+        onLoggedIn={(u) => {
+          setResetToken(null);
+          setUser(u);
+        }}
+      />
+    );
+  }
 
   if (user === undefined) {
     return (
@@ -106,11 +130,147 @@ function AuthGate() {
   );
 }
 
+function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [err, setErr] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErr("");
+    setBusy(true);
+    try {
+      await api.forgotPassword(email.trim());
+      setDone(true);
+    } catch {
+      setErr("Something went wrong. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="p-4 max-w-sm mx-auto pt-16">
+      <h1 className="text-xl font-bold text-snap-800 mb-6 text-center">Receipts</h1>
+      <div className="space-y-3 bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(34,197,94,0.08)]">
+        {done ? (
+          <>
+            <p className="text-sm text-snap-700">If an account with that email exists, a reset link has been sent.</p>
+            <button
+              onClick={onBack}
+              className="w-full py-2.5 rounded-xl bg-snap-500 text-white text-sm font-semibold"
+            >
+              Back to sign in
+            </button>
+          </>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <p className="text-sm text-skin-secondary">Enter your email address and we&apos;ll send you a reset link.</p>
+            {err && <p className="text-sm text-red-600">{err}</p>}
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email address"
+              required
+              className="form-input w-full"
+            />
+            <button
+              type="submit"
+              disabled={busy}
+              className="w-full py-2.5 rounded-xl bg-snap-500 text-white text-sm font-semibold disabled:opacity-50"
+            >
+              {busy ? "Sending…" : "Send reset link"}
+            </button>
+            <button
+              type="button"
+              onClick={onBack}
+              className="w-full py-2 text-sm text-skin-secondary hover:text-snap-700"
+            >
+              Back to sign in
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ResetPasswordForm({ token, onLoggedIn }: { token: string; onLoggedIn: (u: User) => void }) {
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErr("");
+    if (password !== confirm) {
+      setErr("Passwords do not match.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await api.resetPassword(token, password);
+      // Auto-login with new password
+      const loginResult = await api.login(result.username, password);
+      onLoggedIn(loginResult.user);
+    } catch (ex: unknown) {
+      setErr(ex instanceof Error ? ex.message.replace(/^\d+:\s*/, "") : "Failed to reset password.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="p-4 max-w-sm mx-auto pt-16">
+      <h1 className="text-xl font-bold text-snap-800 mb-6 text-center">Receipts</h1>
+      <div className="space-y-3 bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(34,197,94,0.08)]">
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <p className="text-sm font-medium text-snap-800">Set new password</p>
+          {err && <p className="text-sm text-red-600">{err}</p>}
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="New password"
+            required
+            minLength={6}
+            className="form-input w-full"
+          />
+          <input
+            type="password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            placeholder="Confirm new password"
+            required
+            minLength={6}
+            className="form-input w-full"
+          />
+          <button
+            type="submit"
+            disabled={busy}
+            className="w-full py-2.5 rounded-xl bg-snap-500 text-white text-sm font-semibold disabled:opacity-50"
+          >
+            {busy ? "Signing in…" : "Set new password"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function LoginForm({ onLoggedIn }: { onLoggedIn: (u: User) => void }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
+
+  if (showForgot) {
+    return <ForgotPasswordForm onBack={() => setShowForgot(false)} />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,7 +288,7 @@ function LoginForm({ onLoggedIn }: { onLoggedIn: (u: User) => void }) {
 
   return (
     <div className="p-4 max-w-sm mx-auto pt-16">
-      <h1 className="text-xl font-bold text-snap-800 mb-6 text-center">Snap Expenses</h1>
+      <h1 className="text-xl font-bold text-snap-800 mb-6 text-center">Receipts</h1>
       <form onSubmit={handleSubmit} className="space-y-3 bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(34,197,94,0.08)]">
         {err && <p className="text-sm text-red-600">{err}</p>}
         <input
@@ -155,6 +315,13 @@ function LoginForm({ onLoggedIn }: { onLoggedIn: (u: User) => void }) {
           className="w-full py-2.5 rounded-xl bg-snap-500 text-white text-sm font-semibold disabled:opacity-50"
         >
           {busy ? "Signing in…" : "Sign in"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowForgot(true)}
+          className="w-full py-1 text-xs text-skin-secondary hover:text-snap-700"
+        >
+          Forgot password?
         </button>
       </form>
     </div>
@@ -184,6 +351,11 @@ function ExpensesPage({
   const [scanResult, setScanResult] = useState<ReceiptScanResult | null>(null);
   const [showAdmin, setShowAdmin] = useState(false);
   const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Expense[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   const refreshUsers = useCallback(() => {
     if (!user.is_superuser) return;
@@ -310,9 +482,9 @@ function ExpensesPage({
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: number, deleteArchive = false) => {
     try {
-      await api.delete(id);
+      await api.delete(id, deleteArchive);
       toast("Expense deleted");
       loadExpenses();
     } catch {
@@ -327,11 +499,18 @@ function ExpensesPage({
   return (
     <div className="p-4 space-y-3">
       <div className="sticky top-0 z-40 bg-snap-50/90 backdrop-blur-sm py-3 -mx-4 px-4 -mt-4 mb-2 flex items-center justify-between gap-2">
-        <h1 className="text-xl font-bold text-snap-800">Snap Expenses</h1>
+        <h1 className="text-xl font-bold text-snap-800">Receipts</h1>
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-[11px] text-skin-secondary truncate max-w-[100px]" title={user.username}>
             {user.username}
           </span>
+          <button
+            type="button"
+            onClick={() => { setSearchQuery(""); setSearchResults([]); setShowSearch(true); }}
+            className="text-[11px] font-semibold text-snap-600 px-2 py-1 rounded-lg bg-white border border-snap-200"
+          >
+            Search
+          </button>
           {user.is_superuser && (
             <button
               type="button"
@@ -367,7 +546,7 @@ function ExpensesPage({
         {scanning ? (
           <ScanProgress phase={scanPhase} stepIndex={scanStepIndex} />
         ) : (
-          <PhotoCapture onCapture={handlePhoto} label="Scan a receipt" />
+          <PhotoCapture onCapture={handlePhoto} />
         )}
         <button
           onClick={() => { setScanResult(null); setShowAdd(true); }}
@@ -406,50 +585,75 @@ function ExpensesPage({
         {expenses.length > 0 ? (
           <div className="space-y-2">
             {expenses.map((exp) => (
-              <div
-                key={exp.id}
-                role="button"
-                tabIndex={0}
-                aria-label={`Edit expense: ${exp.merchant || exp.category}`}
-                onClick={() => setEditingExpense(exp)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    setEditingExpense(exp);
-                  }
-                }}
-                className="bg-white rounded-[14px] p-3 shadow-[0_1px_4px_rgba(34,197,94,0.08)] cursor-pointer text-left w-full active:bg-snap-50/90 transition-colors"
-              >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-snap-800 truncate">
-                      {exp.merchant || exp.category}
-                    </p>
-                    <div className="flex gap-2 mt-0.5 flex-wrap">
-                      <span className="text-[10px] text-skin-secondary capitalize">{exp.category}</span>
-                      <span className="text-[10px] text-skin-secondary">{exp.card}</span>
-                      <span className="text-[10px] text-snap-500">{exp.attributed_username}</span>
+              <div key={exp.id}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Edit expense: ${exp.merchant || exp.category}`}
+                  onClick={() => { if (confirmDeleteId !== exp.id) setEditingExpense(exp); }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      if (confirmDeleteId !== exp.id) setEditingExpense(exp);
+                    }
+                  }}
+                  className="bg-white rounded-[14px] p-3 shadow-[0_1px_4px_rgba(34,197,94,0.08)] cursor-pointer text-left w-full active:bg-snap-50/90 transition-colors"
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-snap-800 truncate">
+                        {exp.merchant || exp.category}
+                      </p>
+                      <div className="flex gap-2 mt-0.5 flex-wrap">
+                        <span className="text-[10px] text-skin-secondary capitalize">{exp.category}</span>
+                        <span className="text-[10px] text-skin-secondary">{exp.card}</span>
+                        <span className="text-[10px] text-snap-500">{exp.attributed_username}</span>
+                      </div>
+                      {exp.note && <p className="text-[11px] text-skin-secondary mt-0.5 truncate">{exp.note}</p>}
+                      <p className="text-[10px] text-skin-secondary mt-0.5">{exp.date}</p>
                     </div>
-                    {exp.note && <p className="text-[11px] text-skin-secondary mt-0.5 truncate">{exp.note}</p>}
-                    <p className="text-[10px] text-skin-secondary mt-0.5">{exp.date}</p>
-                  </div>
-                  <div className="flex items-center gap-2 ml-2">
-                    <span className="text-sm font-bold text-snap-600 whitespace-nowrap">
-                      {exp.total.toFixed(2)} {exp.currency}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(exp.id);
-                      }}
-                      className="text-skin-secondary text-lg leading-none px-1 -mr-1 rounded-lg hover:bg-snap-100"
-                      aria-label="Delete expense"
-                    >
-                      &times;
-                    </button>
+                    <div className="flex items-center gap-2 ml-2">
+                      <span className="text-sm font-bold text-snap-600 whitespace-nowrap">
+                        {exp.total.toFixed(2)} {exp.currency}
+                      </span>
+                      {user.is_superuser && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmDeleteId(confirmDeleteId === exp.id ? null : exp.id);
+                          }}
+                          className="text-skin-secondary text-lg leading-none px-1 -mr-1 rounded-lg hover:bg-snap-100"
+                          aria-label="Delete expense"
+                        >
+                          &times;
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
+                {user.is_superuser && confirmDeleteId === exp.id && (
+                  <div className="mt-1 px-3 py-2.5 rounded-xl border border-red-200 bg-red-50 space-y-2 text-xs">
+                    <p className="font-semibold text-red-700">Sure you want to delete this expense?</p>
+                    {exp.receipt_photo_path && <p className="text-red-600">Also delete the archived receipt image?</p>}
+                    <div className="flex gap-2 pt-0.5">
+                      {exp.receipt_photo_path && (
+                        <button type="button" onClick={() => { handleDelete(exp.id, true); setConfirmDeleteId(null); }}
+                          className="flex-1 py-1.5 rounded-lg bg-red-600 text-white font-semibold">
+                          Yes, delete both
+                        </button>
+                      )}
+                      <button type="button" onClick={() => { handleDelete(exp.id, false); setConfirmDeleteId(null); }}
+                        className="flex-1 py-1.5 rounded-lg bg-red-100 text-red-700 font-semibold">
+                        {exp.receipt_photo_path ? "Expense only" : "Yes, delete"}
+                      </button>
+                      <button type="button" onClick={() => setConfirmDeleteId(null)}
+                        className="flex-1 py-1.5 rounded-lg border border-snap-200 text-skin-secondary font-semibold">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -490,6 +694,7 @@ function ExpensesPage({
             expense={editingExpense}
             onSubmit={handleEditSave}
             onCancel={() => setEditingExpense(null)}
+            onDelete={(deleteArchive) => { handleDelete(editingExpense.id, deleteArchive); setEditingExpense(null); }}
             currentUser={user}
             allUsers={allUsers}
           />
@@ -506,6 +711,25 @@ function ExpensesPage({
           />
         </Modal>
       )}
+
+      {/* Search Modal */}
+      <Modal open={showSearch} onClose={() => setShowSearch(false)} title="Search">
+        <SearchModal
+          query={searchQuery}
+          results={searchResults}
+          loading={searchLoading}
+          onQueryChange={async (q) => {
+            setSearchQuery(q);
+            if (!q.trim()) { setSearchResults([]); return; }
+            setSearchLoading(true);
+            try {
+              setSearchResults(await api.search(q));
+            } catch { setSearchResults([]); }
+            finally { setSearchLoading(false); }
+          }}
+          onSelect={(exp) => { setShowSearch(false); setEditingExpense(exp); }}
+        />
+      </Modal>
     </div>
   );
 }
@@ -544,6 +768,7 @@ function ReceiptReviewForm({
         category,
         card,
         note: note || undefined,
+        receipt_photo_path: scanResult.receipt_path || undefined,
       };
       if (currentUser.is_superuser) {
         payload.user_id = attributedUserId;
@@ -583,7 +808,9 @@ function ReceiptReviewForm({
         <input type="number" step="0.01" value={total} onChange={(e) => setTotal(e.target.value)} placeholder="Amount" required className="form-input" />
       </FormField>
       <FormField label="Category">
-        <input type="text" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Category" className="form-input" />
+        <select value={category} onChange={(e) => setCategory(e.target.value)} className="form-input">
+          {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
       </FormField>
       <FormField label="Card">
         <select value={card} onChange={(e) => setCard(e.target.value)} className="form-input">
@@ -617,6 +844,19 @@ function ReceiptReviewForm({
 }
 
 
+const CATEGORIES = [
+  "Groceries", "Eating Out", "Transport", "Entertainment", "Health",
+  "Utilities", "Shopping", "Subscriptions", "Travel", "Coffee",
+  "Household", "Rent", "Investments", "Insurance", "Gifts", "Education", "Other",
+];
+
+interface ManualItem {
+  name: string;
+  qty: string;
+  unit_price: string;
+  amount: string;
+}
+
 function ManualEntryForm({
   cards, onSubmit, currentUser, allUsers,
 }: {
@@ -626,31 +866,70 @@ function ManualEntryForm({
   allUsers: User[];
 }) {
   const today = todayISO();
-  const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState("");
+  const [date, setDate] = useState(today);
+  const [merchant, setMerchant] = useState("");
+  const [category, setCategory] = useState("Other");
+  const [items, setItems] = useState<ManualItem[]>([]);
+  const [total, setTotal] = useState("");
   const [card, setCard] = useState(cards[0]);
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [attributedUserId, setAttributedUserId] = useState(currentUser.id);
 
+  const handleMerchantBlur = async () => {
+    if (!merchant) return;
+    try {
+      const result = await api.categorize(merchant);
+      setCategory(result.category);
+    } catch { /* keep current */ }
+  };
+
+  const recalcTotal = (updated: ManualItem[]) => {
+    const sum = updated.reduce((acc, it) => acc + (parseFloat(it.amount) || 0), 0);
+    if (sum > 0) setTotal(sum.toFixed(2));
+  };
+
+  const updateItem = (idx: number, field: keyof ManualItem, value: string) => {
+    const updated = items.map((item, i) => {
+      if (i !== idx) return item;
+      const next = { ...item, [field]: value };
+      if (field === "qty" || field === "unit_price") {
+        const qty = parseFloat(field === "qty" ? value : next.qty) || 1;
+        const up = parseFloat(field === "unit_price" ? value : next.unit_price);
+        if (!isNaN(up)) next.amount = (qty * up).toFixed(2);
+      }
+      return next;
+    });
+    setItems(updated);
+    recalcTotal(updated);
+  };
+
+  const addItem = () => setItems([...items, { name: "", qty: "1", unit_price: "", amount: "" }]);
+
+  const removeItem = (idx: number) => {
+    const updated = items.filter((_, i) => i !== idx);
+    setItems(updated);
+    recalcTotal(updated);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || parseFloat(amount) <= 0) return;
+    if (!total || parseFloat(total) <= 0) return;
     setSaving(true);
     try {
-      let category = "Other";
-      if (description) {
-        try {
-          const result = await api.categorize(description);
-          category = result.category;
-        } catch {
-          // fall back to "Other"
-        }
-      }
+      const validItems = items
+        .filter((it) => it.name && it.amount)
+        .map((it) => ({
+          name: it.name,
+          qty: parseInt(it.qty) || 1,
+          unit_price: parseFloat(it.unit_price) || undefined,
+          amount: parseFloat(it.amount),
+        }));
       const payload: ExpenseCreate = {
-        date: today,
-        merchant: description || undefined,
-        total: parseFloat(amount),
+        date,
+        merchant: merchant || undefined,
+        items: validItems.length > 0 ? validItems : undefined,
+        total: parseFloat(total),
         currency: "EUR",
         category,
         card,
@@ -667,25 +946,57 @@ function ManualEntryForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What was it for?" className="form-input" />
-      <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount (EUR)" required className="form-input" />
-      <select value={card} onChange={(e) => setCard(e.target.value)} className="form-input">
-        {cards.map((c) => <option key={c} value={c}>{c}</option>)}
-      </select>
-      <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" className="form-input" />
-      {currentUser.is_superuser && allUsers.length > 0 && (
-        <select
-          value={attributedUserId}
-          onChange={(e) => setAttributedUserId(Number(e.target.value))}
-          className="form-input"
-        >
-          {allUsers.map((u) => (
-            <option key={u.id} value={u.id}>{u.username}</option>
-          ))}
+      <FormField label="Date">
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="form-input" />
+      </FormField>
+      <FormField label="Shop / Merchant">
+        <input type="text" value={merchant} onChange={(e) => setMerchant(e.target.value)} onBlur={handleMerchantBlur} placeholder="Shop name" className="form-input" />
+      </FormField>
+      <FormField label="Category">
+        <select value={category} onChange={(e) => setCategory(e.target.value)} className="form-input">
+          {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
+      </FormField>
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide">Items (optional)</label>
+          <button type="button" onClick={addItem} className="text-[11px] font-semibold text-snap-600 active:text-snap-800">+ Add item</button>
+        </div>
+        {items.length > 0 && (
+          <div className="space-y-1.5">
+            {items.map((item, i) => (
+              <div key={i} className="flex gap-1.5 items-center">
+                <input type="text" value={item.name} onChange={(e) => updateItem(i, "name", e.target.value)} placeholder="Item name" className="form-input flex-1 min-w-0" />
+                <input type="number" value={item.qty} onChange={(e) => updateItem(i, "qty", e.target.value)} placeholder="1" min="1" className="form-input !w-16 text-center shrink-0" />
+                <input type="number" step="0.01" value={item.unit_price} onChange={(e) => updateItem(i, "unit_price", e.target.value)} placeholder="€" className="form-input !w-20 text-right shrink-0" />
+                <button type="button" onClick={() => removeItem(i)} className="text-skin-secondary active:text-red-500 text-lg leading-none px-1">×</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <FormField label="Total">
+        <input type="number" step="0.01" value={total} onChange={(e) => setTotal(e.target.value)} placeholder="Amount (EUR)" required className="form-input" />
+      </FormField>
+      <FormField label="Card">
+        <select value={card} onChange={(e) => setCard(e.target.value)} className="form-input">
+          {cards.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </FormField>
+      <FormField label="Note (optional)">
+        <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a note..." className="form-input" />
+      </FormField>
+      {currentUser.is_superuser && allUsers.length > 0 && (
+        <FormField label="Attributed to">
+          <select value={attributedUserId} onChange={(e) => setAttributedUserId(Number(e.target.value))} className="form-input">
+            {allUsers.map((u) => (
+              <option key={u.id} value={u.id}>{u.username}{u.is_superuser ? " (admin)" : ""}</option>
+            ))}
+          </select>
+        </FormField>
       )}
-      <button type="submit" disabled={saving || !amount} className="w-full py-2.5 rounded-xl bg-snap-500 text-white text-sm font-semibold active:bg-snap-600 transition-colors disabled:opacity-50">
-        {saving ? "Categorizing & saving..." : "Save Expense"}
+      <button type="submit" disabled={saving || !total} className="w-full py-2.5 rounded-xl bg-snap-500 text-white text-sm font-semibold active:bg-snap-600 transition-colors disabled:opacity-50">
+        {saving ? "Saving..." : "Save Expense"}
       </button>
     </form>
   );
@@ -755,12 +1066,13 @@ function HistoryList({ expenses, onEdit }: { expenses: Expense[]; onEdit: (expen
 
 
 function EditExpenseForm({
-  cards, expense, onSubmit, onCancel, currentUser, allUsers,
+  cards, expense, onSubmit, onCancel, onDelete, currentUser, allUsers,
 }: {
   cards: string[];
   expense: Expense;
   onSubmit: (data: ExpenseCreate & { user_id?: number }) => void;
   onCancel: () => void;
+  onDelete: (deleteArchive: boolean) => void;
   currentUser: User;
   allUsers: User[];
 }) {
@@ -770,6 +1082,7 @@ function EditExpenseForm({
   const [card, setCard] = useState(expense.card || cards[0]);
   const [note, setNote] = useState(expense.note || "");
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [attributedUserId, setAttributedUserId] = useState(expense.user_id);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -797,6 +1110,17 @@ function EditExpenseForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
+      {expense.receipt_photo_path && (
+        <a
+          href={`/${expense.receipt_photo_path}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-snap-50 border border-snap-200 text-xs text-snap-700 font-medium hover:bg-snap-100 transition-colors"
+        >
+          <span className="text-base leading-none">🧾</span>
+          <span className="truncate">{expense.receipt_photo_path.split("/").pop()}</span>
+        </a>
+      )}
       <FormField label="Shop / Merchant">
         <input type="text" value={merchant} onChange={(e) => setMerchant(e.target.value)} placeholder="Shop name" className="form-input" />
       </FormField>
@@ -823,7 +1147,9 @@ function EditExpenseForm({
         <input type="number" step="0.01" value={total} onChange={(e) => setTotal(e.target.value)} placeholder="Amount" required className="form-input" />
       </FormField>
       <FormField label="Category">
-        <input type="text" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Category" className="form-input" />
+        <select value={category} onChange={(e) => setCategory(e.target.value)} className="form-input">
+          {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
       </FormField>
       <FormField label="Card">
         <select value={card} onChange={(e) => setCard(e.target.value)} className="form-input">
@@ -852,6 +1178,48 @@ function EditExpenseForm({
           {saving ? "Saving..." : "Save Changes"}
         </button>
       </div>
+
+      {currentUser.is_superuser && !confirmDelete ? (
+        <button
+          type="button"
+          onClick={() => setConfirmDelete(true)}
+          className="w-full py-2 rounded-xl text-xs font-semibold text-red-500 hover:bg-red-50 transition-colors"
+        >
+          Delete expense
+        </button>
+      ) : currentUser.is_superuser ? (
+        <div className="px-3 py-2.5 rounded-xl border border-red-200 bg-red-50 space-y-2 text-xs">
+          <p className="font-semibold text-red-700">Sure you want to delete this expense?</p>
+          {expense.receipt_photo_path && (
+            <p className="text-red-600">Also delete the archived receipt image?</p>
+          )}
+          <div className="flex gap-2 pt-0.5">
+            {expense.receipt_photo_path && (
+              <button
+                type="button"
+                onClick={() => onDelete(true)}
+                className="flex-1 py-1.5 rounded-lg bg-red-600 text-white font-semibold"
+              >
+                Yes, delete both
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => onDelete(false)}
+              className="flex-1 py-1.5 rounded-lg bg-red-100 text-red-700 font-semibold"
+            >
+              {expense.receipt_photo_path ? "Expense only" : "Yes, delete"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(false)}
+              className="flex-1 py-1.5 rounded-lg border border-snap-200 text-skin-secondary font-semibold"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
     </form>
   );
 }
@@ -870,22 +1238,26 @@ function UserAdminPanel({
 }) {
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [newEmail, setNewEmail] = useState("");
   const [newSuper, setNewSuper] = useState(false);
   const [busy, setBusy] = useState(false);
   const [pwEdit, setPwEdit] = useState<Record<number, string>>({});
+  const [emailEdit, setEmailEdit] = useState<Record<number, string>>({});
 
   const createUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newUsername.trim() || !newPassword) return;
+    if (!newUsername.trim() || !newPassword || !newEmail.trim()) return;
     setBusy(true);
     try {
       await api.createUser({
         username: newUsername.trim(),
         password: newPassword,
         is_superuser: newSuper,
+        email: newEmail.trim(),
       });
       setNewUsername("");
       setNewPassword("");
+      setNewEmail("");
       setNewSuper(false);
       onRefresh();
     } catch {
@@ -905,6 +1277,20 @@ function UserAdminPanel({
       onRefresh();
     } catch {
       alert("Could not update password");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const setEmail = async (id: number) => {
+    const email = emailEdit[id] ?? "";
+    setBusy(true);
+    try {
+      await api.updateUser(id, { email: email.trim() });
+      setEmailEdit((p) => ({ ...p, [id]: "" }));
+      onRefresh();
+    } catch {
+      alert("Could not update email");
     } finally {
       setBusy(false);
     }
@@ -940,6 +1326,14 @@ function UserAdminPanel({
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
         />
+        <input
+          className="form-input w-full"
+          type="email"
+          placeholder="Email"
+          required
+          value={newEmail}
+          onChange={(e) => setNewEmail(e.target.value)}
+        />
         <label className="flex items-center gap-2 text-sm text-snap-700">
           <input type="checkbox" checked={newSuper} onChange={(e) => setNewSuper(e.target.checked)} />
           Superuser
@@ -957,10 +1351,30 @@ function UserAdminPanel({
         {users.map((u) => (
           <div key={u.id} className="p-3 rounded-xl border border-snap-100 space-y-2">
             <div className="flex justify-between items-center gap-2">
-              <span className="font-semibold text-snap-800">{u.username}</span>
+              <div>
+                <span className="font-semibold text-snap-800">{u.username}</span>
+                {u.email && <p className="text-[11px] text-skin-secondary">{u.email}</p>}
+              </div>
               {u.is_superuser && (
                 <span className="text-[10px] uppercase font-bold text-snap-600">admin</span>
               )}
+            </div>
+            <div className="flex gap-1">
+              <input
+                className="form-input flex-1 text-sm"
+                type="email"
+                placeholder={u.email ?? "Email"}
+                value={emailEdit[u.id] ?? ""}
+                onChange={(e) => setEmailEdit((p) => ({ ...p, [u.id]: e.target.value }))}
+              />
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void setEmail(u.id)}
+                className="px-2 py-1 text-xs font-semibold rounded-lg bg-snap-100 text-snap-700"
+              >
+                Set
+              </button>
             </div>
             <div className="flex gap-1">
               <input
@@ -995,6 +1409,55 @@ function UserAdminPanel({
       <button type="button" onClick={onClose} className="w-full py-2 text-sm text-skin-secondary">
         Close
       </button>
+    </div>
+  );
+}
+
+
+function SearchModal({ query, results, loading, onQueryChange, onSelect }: {
+  query: string;
+  results: Expense[];
+  loading: boolean;
+  onQueryChange: (q: string) => void;
+  onSelect: (exp: Expense) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <input
+        type="search"
+        autoFocus
+        value={query}
+        onChange={(e) => onQueryChange(e.target.value)}
+        placeholder="Search by merchant, category, date, note…"
+        className="form-input w-full"
+      />
+      {loading && <p className="text-xs text-skin-secondary text-center py-2">Searching…</p>}
+      {!loading && query.trim() && results.length === 0 && (
+        <p className="text-xs text-skin-secondary text-center py-2">No results.</p>
+      )}
+      {results.length > 0 && (
+        <div className="max-h-[60vh] overflow-y-auto -mx-1 px-1 space-y-1">
+          {results.map((exp) => (
+            <button
+              key={exp.id}
+              type="button"
+              onClick={() => onSelect(exp)}
+              className="w-full text-left px-3 py-2.5 rounded-xl bg-snap-50 active:bg-snap-100 transition-colors"
+            >
+              <div className="flex justify-between items-start gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-snap-800 truncate">{exp.merchant || exp.category}</p>
+                  <p className="text-[10px] text-skin-secondary">{exp.date} · {exp.category}</p>
+                  {exp.note && <p className="text-[11px] text-skin-secondary truncate">{exp.note}</p>}
+                </div>
+                <span className="text-sm font-bold text-snap-600 whitespace-nowrap shrink-0">
+                  {exp.total.toFixed(2)} {exp.currency}
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

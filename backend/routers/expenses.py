@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import sqlite3
 from collections import defaultdict
 from datetime import datetime
@@ -10,7 +11,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
 
 from backend.database import get_db
-from backend.deps import CurrentUserDep
+from backend.deps import CurrentUserDep, SuperuserDep
 from backend.models import (
     CategorizeRequest,
     CategorizeResponse,
@@ -23,7 +24,16 @@ from backend.services.ai import categorize_expense, scan_receipt
 
 router = APIRouter(prefix="/api/expenses", tags=["expenses"])
 
-UPLOAD_DIR = Path(__file__).parent.parent.parent / "data" / "receipts"
+ARCHIVE_DIR = Path(__file__).parent.parent.parent / "data" / "receipts" / "archive"
+TMP_DIR = Path(__file__).parent.parent.parent / "data" / "receipts" / "tmp"
+DATA_DIR = Path(__file__).parent.parent.parent / "data"
+
+
+def _slugify(text: str) -> str:
+    text = text.lower().strip()
+    text = re.sub(r"[^\w\s]", "", text)
+    text = re.sub(r"\s+", "_", text)
+    return re.sub(r"_+", "_", text).strip("_") or "unknown"
 
 DEFAULT_CARDS = ["Credit Card", "Debit Card", "ePassi", "Cash"]
 
@@ -119,6 +129,27 @@ def monthly_summary(
     }
 
 
+def _archive_tmp_receipt(tmp_rel_path: str, expense: "ExpenseCreate", username: str) -> str:
+    """Move a staged receipt from tmp/ to archive/ and return the new relative path."""
+    tmp_file = DATA_DIR / tmp_rel_path
+    if not tmp_file.exists():
+        return tmp_rel_path  # already gone, keep whatever path was given
+    ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+    date_str = (expense.date or "").replace("-", "")[:8] or datetime.now().strftime("%Y%m%d")
+    cat_slug = _slugify(expense.category or "other")
+    merchant_slug = _slugify(expense.merchant or "unknown")
+    user_slug = _slugify(username)
+    base_name = f"{date_str}_{cat_slug}_{merchant_slug}_{user_slug}"
+    ext = tmp_file.suffix
+    archive_path = ARCHIVE_DIR / f"{base_name}{ext}"
+    counter = 2
+    while archive_path.exists():
+        archive_path = ARCHIVE_DIR / f"{base_name}_{counter}{ext}"
+        counter += 1
+    tmp_file.rename(archive_path)
+    return f"receipts/archive/{archive_path.name}"
+
+
 @router.post("/", response_model=ExpenseResponse, status_code=201)
 def create_expense(
     expense: ExpenseCreate,
@@ -127,6 +158,10 @@ def create_expense(
 ):
     attributed = _resolve_attributed_user_id(expense, current, db)
     uid = attributed if attributed is not None else current.id
+
+    receipt_path = expense.receipt_photo_path
+    if receipt_path and receipt_path.startswith("receipts/tmp/"):
+        receipt_path = _archive_tmp_receipt(receipt_path, expense, current.username)
 
     items_json = json.dumps([item.model_dump() for item in expense.items])
     cursor = db.execute(
@@ -141,7 +176,7 @@ def create_expense(
             expense.category,
             expense.card,
             expense.note,
-            expense.receipt_photo_path,
+            receipt_path,
             int(expense.ai_extracted),
             uid,
         ),
@@ -156,16 +191,52 @@ def create_expense(
 @router.post("/scan", response_model=ReceiptScan)
 async def scan_receipt_endpoint(_user: CurrentUserDep, photo: UploadFile = File(...)):
     image_data = await photo.read()
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    TMP_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Save to staging area while AI processes — only moves to archive on expense save
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{timestamp}_{photo.filename}"
-    save_path = UPLOAD_DIR / filename
-    save_path.write_bytes(image_data)
+    ext = Path(photo.filename or "receipt.jpg").suffix.lower() or ".jpg"
+    tmp_path = TMP_DIR / f"{timestamp}{ext}"
+    tmp_path.write_bytes(image_data)
+
     try:
         result = scan_receipt(image_data, photo.content_type)
     except (ValueError, Exception) as e:
+        tmp_path.unlink(missing_ok=True)
         raise HTTPException(status_code=422, detail=str(e))
+
+    result["receipt_path"] = f"receipts/tmp/{tmp_path.name}"
     return result
+
+
+@router.get("/search", response_model=list[ExpenseResponse])
+def search_expenses(
+    _user: CurrentUserDep,
+    q: str = Query(""),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    if not q.strip():
+        return []
+    term = f"%{q.strip()}%"
+    rows = db.execute(
+        f"{EXPENSE_SELECT} WHERE e.merchant LIKE ? OR e.category LIKE ? OR e.note LIKE ? OR e.items LIKE ? OR e.date LIKE ? OR e.card LIKE ?"
+        " ORDER BY e.date DESC, e.id DESC",
+        (term, term, term, term, term, term),
+    ).fetchall()
+    return [row_to_expense(r) for r in rows]
+
+
+@router.get("/archive")
+def list_archive(_user: CurrentUserDep, db: sqlite3.Connection = Depends(get_db)):
+    """Return archived receipt filenames sorted descending (newest first), with expense link flag."""
+    if not ARCHIVE_DIR.exists():
+        return []
+    files = sorted([f.name for f in ARCHIVE_DIR.iterdir() if f.is_file()], reverse=True)
+    linked = {
+        row["receipt_photo_path"].split("/")[-1]
+        for row in db.execute("SELECT receipt_photo_path FROM expenses WHERE receipt_photo_path IS NOT NULL").fetchall()
+    }
+    return [{"name": f, "has_expense": f in linked} for f in files]
 
 
 @router.post("/categorize", response_model=CategorizeResponse)
@@ -212,15 +283,36 @@ def update_expense(
     return row_to_expense(row)
 
 
+@router.delete("/archive/{filename}", status_code=204)
+def delete_archive_file(
+    filename: str,
+    _user: SuperuserDep,
+    delete_expense: bool = Query(False),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    archive_path = ARCHIVE_DIR / filename
+    if archive_path.exists():
+        archive_path.unlink()
+    if delete_expense:
+        relative = f"receipts/archive/{filename}"
+        db.execute("DELETE FROM expenses WHERE receipt_photo_path = ?", (relative,))
+        db.commit()
+    return Response(status_code=204)
+
+
 @router.delete("/{expense_id}", status_code=204)
 def delete_expense(
     expense_id: int,
-    _user: CurrentUserDep,
+    _user: SuperuserDep,
+    delete_archive: bool = Query(False),
     db: sqlite3.Connection = Depends(get_db),
 ):
-    row = db.execute("SELECT id FROM expenses WHERE id = ?", (expense_id,)).fetchone()
+    row = db.execute("SELECT id, receipt_photo_path FROM expenses WHERE id = ?", (expense_id,)).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail="Expense not found")
+    if delete_archive and row["receipt_photo_path"]:
+        archive_path = Path(__file__).parent.parent.parent / "data" / row["receipt_photo_path"]
+        archive_path.unlink(missing_ok=True)
     db.execute("DELETE FROM expenses WHERE id = ?", (expense_id,))
     db.commit()
     return Response(status_code=204)
