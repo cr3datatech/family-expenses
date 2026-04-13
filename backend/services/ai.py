@@ -67,17 +67,22 @@ def scan_receipt(image_data: bytes, media_type: str) -> dict:
 
     prompt = (
         "Extract data from this receipt. Return ONLY a JSON object with: "
-        '"merchant" (string or null), "date" (string ISO date or null), '
+        '"merchant" (string or null), "date" (string ISO date YYYY-MM-DD or null — note: Finnish/European receipts use DD.MM.YYYY, e.g. 12.4.2026 means April 12 = 2026-04-12), '
         '"items" (array of {"name": string, "qty": integer, "unit_price": float, "amount": float}), '
         '"total" (float), '
         '"category" (string, Title Case - prefer these: Groceries, Eating Out, Transport, Entertainment, '
-        "Health, Utilities, Shopping, Subscriptions, Travel, Coffee, Household, Rent, "
+        "Health, Utilities, Shopping, Subscriptions, Travel, Coffee, Household, Rent, Car, "
         "Investments, Insurance, Gifts, Education, Other. "
         'Use "Eating Out" for all restaurants/cafes/takeaway, never "Dining"). '
         "Group identical items into one entry with the correct qty. "
         "For example, 3 separate 'Taco al Pastor' at 1.00 each becomes "
         '{"name": "Taco al Pastor", "qty": 3, "unit_price": 1.00, "amount": 3.00}. '
         "amount = qty * unit_price. The sum of all item amounts should equal the total. "
+        "On Finnish receipts, an item line (name + total price) is often followed by a sub-line "
+        "showing the quantity and unit price, e.g. '2 kpl x 1.49' or '3 kpl a 2.00' — "
+        "use those values as qty and unit_price, and the item line price as amount. "
+        "A line starting with '-' or marked 'ale'/'alennus' below an item is a discount — "
+        "subtract it from that item's amount (do not create a separate item for discounts). "
         "No markdown, just JSON."
     )
 
@@ -126,7 +131,7 @@ def categorize_expense(description: str) -> str:
                     f"Categorize this expense in 1-2 words, Title Case. "
                     f"Prefer these categories: Groceries, Eating Out, Transport, Entertainment, "
                     f"Health, Utilities, Shopping, Subscriptions, Travel, Coffee, Household, "
-                    f"Rent, Investments, Insurance, Gifts, Education, Other. "
+                    f"Rent, Car, Investments, Insurance, Gifts, Education, Other. "
                     f'Use "Eating Out" for all restaurants/cafes/takeaway (never "Dining" or "Restaurant"). '
                     f"You may create a new category if none fit, but keep it Title Case and consistent. "
                     f"Reply with ONLY the category, nothing else.\n\n"

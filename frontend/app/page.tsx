@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useToast, ToastProvider } from "@/components/Toast";
 import { todayISO } from "@/lib/dates";
-import { api, Expense, ExpenseCreate, ReceiptScanResult, User } from "@/lib/api";
+import { api, AnalyticsData, Expense, ExpenseCreate, ReceiptScanResult, User } from "@/lib/api";
 import PhotoCapture from "@/components/PhotoCapture";
 import Modal from "@/components/Modal";
 
@@ -356,6 +356,7 @@ function ExpensesPage({
   const [searchResults, setSearchResults] = useState<Expense[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [showAnalytics, setShowAnalytics] = useState(false);
 
   const refreshUsers = useCallback(() => {
     if (!user.is_superuser) return;
@@ -497,7 +498,9 @@ function ExpensesPage({
     : [];
 
   return (
-    <div className="p-4 space-y-3">
+    <>
+      {showAnalytics && <AnalyticsPanel onClose={() => setShowAnalytics(false)} />}
+      <div className="p-4 space-y-3">
       <div className="sticky top-0 z-40 bg-snap-50/90 backdrop-blur-sm py-3 -mx-4 px-4 -mt-4 mb-2 flex items-center justify-between gap-2">
         <h1 className="text-xl font-bold text-snap-800">Receipts</h1>
         <div className="flex items-center gap-2 shrink-0">
@@ -510,6 +513,13 @@ function ExpensesPage({
             className="text-[11px] font-semibold text-snap-600 px-2 py-1 rounded-lg bg-white border border-snap-200"
           >
             Search
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowAnalytics(true)}
+            className="text-[11px] font-semibold text-snap-600 px-2 py-1 rounded-lg bg-white border border-snap-200"
+          >
+            Charts
           </button>
           {user.is_superuser && (
             <button
@@ -731,6 +741,7 @@ function ExpensesPage({
         />
       </Modal>
     </div>
+    </>
   );
 }
 
@@ -746,6 +757,7 @@ function ReceiptReviewForm({
   allUsers: User[];
 }) {
   const today = todayISO();
+  const [date, setDate] = useState(scanResult.date || today);
   const [merchant, setMerchant] = useState(scanResult.merchant || "");
   const [total, setTotal] = useState(scanResult.total?.toString() || "");
   const [category, setCategory] = useState(scanResult.category || "Other");
@@ -760,7 +772,7 @@ function ReceiptReviewForm({
     setSaving(true);
     try {
       const payload: ExpenseCreate = {
-        date: scanResult.date || today,
+        date: date || today,
         merchant: merchant || undefined,
         items: scanResult.items || undefined,
         total: parseFloat(total),
@@ -801,6 +813,9 @@ function ReceiptReviewForm({
           </div>
         )}
       </div>
+      <FormField label="Date">
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="form-input" />
+      </FormField>
       <FormField label="Shop / Merchant">
         <input type="text" value={merchant} onChange={(e) => setMerchant(e.target.value)} placeholder="Shop name" className="form-input" />
       </FormField>
@@ -847,7 +862,7 @@ function ReceiptReviewForm({
 const CATEGORIES = [
   "Groceries", "Eating Out", "Transport", "Entertainment", "Health",
   "Utilities", "Shopping", "Subscriptions", "Travel", "Coffee",
-  "Household", "Rent", "Investments", "Insurance", "Gifts", "Education", "Other",
+  "Household", "Rent", "Car", "Investments", "Insurance", "Gifts", "Education", "Other",
 ];
 
 interface ManualItem {
@@ -1076,6 +1091,7 @@ function EditExpenseForm({
   currentUser: User;
   allUsers: User[];
 }) {
+  const [date, setDate] = useState(expense.date);
   const [merchant, setMerchant] = useState(expense.merchant || "");
   const [total, setTotal] = useState(expense.total.toString());
   const [category, setCategory] = useState(expense.category || "Other");
@@ -1091,7 +1107,7 @@ function EditExpenseForm({
     setSaving(true);
     try {
       const payload: ExpenseCreate & { user_id?: number } = {
-        date: expense.date,
+        date,
         merchant: merchant || undefined,
         total: parseFloat(total),
         currency: expense.currency || "EUR",
@@ -1121,6 +1137,9 @@ function EditExpenseForm({
           <span className="truncate">{expense.receipt_photo_path.split("/").pop()}</span>
         </a>
       )}
+      <FormField label="Date">
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="form-input" />
+      </FormField>
       <FormField label="Shop / Merchant">
         <input type="text" value={merchant} onChange={(e) => setMerchant(e.target.value)} placeholder="Shop name" className="form-input" />
       </FormField>
@@ -1468,6 +1487,205 @@ function FormField({ label, children }: { label: string; children: React.ReactNo
     <div>
       <label className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide">{label}</label>
       <div className="mt-1">{children}</div>
+    </div>
+  );
+}
+
+
+const ANALYTICS_PRESETS = [
+  { key: "month", label: "Month" },
+  { key: "3m", label: "3 months" },
+  { key: "year", label: "Year" },
+  { key: "all", label: "All time" },
+];
+
+function getAnalyticsRange(preset: string): { from?: string; to?: string } {
+  const today = todayISO();
+  const d = new Date();
+  if (preset === "month") {
+    return { from: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`, to: today };
+  }
+  if (preset === "3m") {
+    const from = new Date(d);
+    from.setMonth(from.getMonth() - 2);
+    from.setDate(1);
+    return { from: from.toISOString().split("T")[0], to: today };
+  }
+  if (preset === "year") {
+    return { from: `${d.getFullYear()}-01-01`, to: today };
+  }
+  return {};
+}
+
+function AnalyticsPanel({ onClose }: { onClose: () => void }) {
+  const [preset, setPreset] = useState("month");
+  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [itemFilter, setItemFilter] = useState("");
+
+  useEffect(() => {
+    const { from, to } = getAnalyticsRange(preset);
+    setLoading(true);
+    setData(null);
+    api.analytics(from, to)
+      .then(setData)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [preset]);
+
+  const filteredItems = (data?.top_items ?? []).filter(
+    (item) => !itemFilter.trim() || item.name.toLowerCase().includes(itemFilter.toLowerCase())
+  );
+
+  const maxCategory = data?.by_category[0]?.total ?? 1;
+  const maxMerchant = data?.by_merchant[0]?.total ?? 1;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-snap-50 overflow-y-auto">
+      <div className="sticky top-0 z-10 bg-snap-50/90 backdrop-blur-sm border-b border-snap-100">
+        <div className="max-w-md mx-auto px-4 py-3 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-sm font-semibold text-snap-600"
+          >
+            ← Back
+          </button>
+          <h1 className="text-base font-bold text-snap-800 flex-1">Analytics</h1>
+        </div>
+        <div className="max-w-md mx-auto px-4 pb-2 flex gap-2">
+          {ANALYTICS_PRESETS.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => setPreset(p.key)}
+              className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                preset === p.key
+                  ? "bg-snap-500 text-white border-snap-500"
+                  : "bg-white text-snap-600 border-snap-200"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="max-w-md mx-auto p-4 space-y-4">
+        {loading && (
+          <p className="text-center text-sm text-skin-secondary py-8">Loading…</p>
+        )}
+
+        {!loading && data && (
+          <>
+            {/* Overview */}
+            <div className="bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(34,197,94,0.08)]">
+              <p className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide mb-1">Total spend</p>
+              <p className="text-2xl font-bold text-snap-800">{data.total.toFixed(2)} EUR</p>
+              <p className="text-xs text-skin-secondary mt-0.5">
+                {data.count} {data.count === 1 ? "expense" : "expenses"}
+                {data.count > 0 && ` · avg ${(data.total / data.count).toFixed(2)} EUR`}
+              </p>
+            </div>
+
+            {/* By Category */}
+            {data.by_category.length > 0 && (
+              <div className="bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(34,197,94,0.08)]">
+                <p className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide mb-3">By category</p>
+                <div className="space-y-2">
+                  {data.by_category.map((row) => (
+                    <div key={row.category} className="flex items-center gap-2">
+                      <span className="w-24 text-xs text-skin-primary truncate shrink-0">{row.category}</span>
+                      <div className="flex-1 bg-snap-100 rounded-full h-1.5">
+                        <div
+                          className="bg-snap-500 h-1.5 rounded-full"
+                          style={{ width: `${(row.total / maxCategory) * 100}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-mono text-snap-800 w-16 text-right shrink-0">
+                        {row.total.toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* By Merchant */}
+            {data.by_merchant.length > 0 && (
+              <div className="bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(34,197,94,0.08)]">
+                <p className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide mb-3">Top merchants</p>
+                <div className="space-y-2">
+                  {data.by_merchant.map((row) => (
+                    <div key={row.merchant} className="flex items-center gap-2">
+                      <span className="flex-1 text-xs text-skin-primary truncate">{row.merchant}</span>
+                      <div className="w-20 bg-snap-100 rounded-full h-1.5 shrink-0">
+                        <div
+                          className="bg-snap-300 h-1.5 rounded-full"
+                          style={{ width: `${(row.total / maxMerchant) * 100}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-mono text-snap-800 w-16 text-right shrink-0">
+                        {row.total.toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* By Month */}
+            {data.by_month.length > 1 && (
+              <div className="bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(34,197,94,0.08)]">
+                <p className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide mb-3">By month</p>
+                <div className="space-y-1.5">
+                  {data.by_month.map((row) => (
+                    <div key={row.month} className="flex justify-between text-xs">
+                      <span className="text-skin-secondary">{row.month}</span>
+                      <span className="font-mono text-snap-800">{row.total.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Top Items */}
+            {data.top_items.length > 0 && (
+              <div className="bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(34,197,94,0.08)]">
+                <p className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide mb-2">Items</p>
+                <input
+                  type="search"
+                  value={itemFilter}
+                  onChange={(e) => setItemFilter(e.target.value)}
+                  placeholder="Filter items…"
+                  className="form-input text-sm mb-3"
+                />
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {filteredItems.map((item) => (
+                    <div key={item.name} className="flex items-center gap-2 text-xs">
+                      <span className="flex-1 text-skin-primary truncate">{item.name}</span>
+                      <span className="text-skin-secondary shrink-0">×{item.total_qty}</span>
+                      {item.avg_unit_price != null && (
+                        <span className="text-skin-secondary shrink-0">{item.avg_unit_price.toFixed(2)}</span>
+                      )}
+                      <span className="font-mono text-snap-800 w-14 text-right shrink-0">
+                        {item.total_amount.toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                  {filteredItems.length === 0 && itemFilter.trim() && (
+                    <p className="text-xs text-skin-secondary text-center py-2">No items match.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {data.count === 0 && (
+              <p className="text-center text-sm text-skin-secondary py-4">No expenses in this period.</p>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

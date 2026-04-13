@@ -99,6 +99,16 @@ export interface ReceiptScanResult {
   receipt_path: string | null;
 }
 
+export interface AnalyticsData {
+  total: number;
+  count: number;
+  by_category: { category: string; total: number; count: number }[];
+  by_card: { card: string; total: number; count: number }[];
+  by_merchant: { merchant: string; total: number; count: number }[];
+  by_month: { month: string; total: number; count: number }[];
+  top_items: { name: string; total_amount: number; total_qty: number; avg_unit_price: number | null }[];
+}
+
 export const api = {
   me: async (): Promise<User | null> => {
     const res = await fetch(`${BASE}/auth/me`, { credentials: "include" });
@@ -185,6 +195,13 @@ export const api = {
     }),
 
   search: (q: string) => request<Expense[]>(`/expenses/search?q=${encodeURIComponent(q)}`),
+
+  analytics: (dateFrom?: string, dateTo?: string) => {
+    const params = new URLSearchParams();
+    if (dateFrom) params.set("date_from", dateFrom);
+    if (dateTo) params.set("date_to", dateTo);
+    return request<AnalyticsData>(`/expenses/analytics?${params}`);
+  },
 
   forgotPassword: (email: string) =>
     request<{ ok: boolean }>("/auth/forgot-password", {

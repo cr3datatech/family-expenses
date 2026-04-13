@@ -245,6 +245,79 @@ def categorize_endpoint(_user: CurrentUserDep, req: CategorizeRequest):
     return CategorizeResponse(category=category)
 
 
+@router.get("/analytics")
+def analytics(
+    _user: CurrentUserDep,
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    conditions = ["1=1"]
+    params: list = []
+    if date_from:
+        conditions.append("e.date >= ?")
+        params.append(date_from)
+    if date_to:
+        conditions.append("e.date <= ?")
+        params.append(date_to)
+    where = " AND ".join(conditions)
+
+    total_row = db.execute(
+        f"SELECT COALESCE(SUM(total), 0) AS total, COUNT(*) AS count FROM expenses e WHERE {where}",
+        params,
+    ).fetchone()
+
+    by_category = db.execute(
+        f"SELECT category, SUM(total) AS total, COUNT(*) AS count FROM expenses e WHERE {where}"
+        " GROUP BY category ORDER BY total DESC",
+        params,
+    ).fetchall()
+
+    by_card = db.execute(
+        f"SELECT card, SUM(total) AS total, COUNT(*) AS count FROM expenses e WHERE {where}"
+        " GROUP BY card ORDER BY total DESC",
+        params,
+    ).fetchall()
+
+    by_merchant = db.execute(
+        f"SELECT merchant, SUM(total) AS total, COUNT(*) AS count FROM expenses e"
+        f" WHERE {where} AND merchant IS NOT NULL GROUP BY merchant ORDER BY total DESC LIMIT 15",
+        params,
+    ).fetchall()
+
+    by_month = db.execute(
+        f"SELECT strftime('%Y-%m', e.date) AS month, SUM(total) AS total, COUNT(*) AS count"
+        f" FROM expenses e WHERE {where} GROUP BY month ORDER BY month DESC",
+        params,
+    ).fetchall()
+
+    top_items = db.execute(
+        f"""
+        SELECT
+            json_extract(item.value, '$.name') AS name,
+            SUM(CAST(json_extract(item.value, '$.amount') AS REAL)) AS total_amount,
+            SUM(CAST(json_extract(item.value, '$.qty') AS INTEGER)) AS total_qty,
+            AVG(CAST(json_extract(item.value, '$.unit_price') AS REAL)) AS avg_unit_price
+        FROM expenses e, json_each(e.items) AS item
+        WHERE {where}
+        GROUP BY name
+        ORDER BY total_amount DESC
+        LIMIT 50
+        """,
+        params,
+    ).fetchall()
+
+    return {
+        "total": total_row["total"],
+        "count": total_row["count"],
+        "by_category": [dict(r) for r in by_category],
+        "by_card": [dict(r) for r in by_card],
+        "by_merchant": [dict(r) for r in by_merchant],
+        "by_month": [dict(r) for r in by_month],
+        "top_items": [dict(r) for r in top_items],
+    }
+
+
 @router.put("/{expense_id}", response_model=ExpenseResponse)
 def update_expense(
     expense_id: int,
