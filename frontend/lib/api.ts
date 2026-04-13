@@ -64,6 +64,8 @@ export interface Expense {
   receipt_photo_path: string | null;
   ai_extracted: boolean;
   created_at: string;
+  is_shared: boolean;
+  shared_with: number[];
   user_id: number;
   attributed_username: string;
 }
@@ -78,6 +80,8 @@ export interface ExpenseCreate {
   card: string;
   note?: string;
   receipt_photo_path?: string;
+  is_shared?: boolean;
+  shared_with?: number[];
   user_id?: number;
 }
 
@@ -151,17 +155,51 @@ export const api = {
 
   cards: () => request<string[]>("/expenses/cards"),
 
-  list: (year?: number, month?: number) => {
+  list: (year?: number, month?: number, isShared?: boolean, attributedTo?: number, dateFrom?: string, dateTo?: string) => {
     const params = new URLSearchParams();
     if (year !== undefined && month !== undefined) {
       params.set("year", year.toString());
       params.set("month", month.toString());
     }
+    if (isShared !== undefined) params.set("is_shared", isShared ? "true" : "false");
+    if (attributedTo !== undefined) params.set("attributed_to", attributedTo.toString());
+    if (dateFrom) params.set("date_from", dateFrom);
+    if (dateTo) params.set("date_to", dateTo);
+    return request<Expense[]>(`/expenses/?${params}`);
+  },
+
+  listPersonalFor: (userId: number, dateFrom?: string, dateTo?: string) => {
+    const params = new URLSearchParams({ attributed_to: userId.toString() });
+    if (dateFrom) params.set("date_from", dateFrom);
+    if (dateTo) params.set("date_to", dateTo);
+    return request<Expense[]>(`/expenses/?${params}`);
+  },
+
+  listAllShared: (dateFrom?: string, dateTo?: string) => {
+    const params = new URLSearchParams({ is_shared: "true" });
+    if (dateFrom) params.set("date_from", dateFrom);
+    if (dateTo) params.set("date_to", dateTo);
     return request<Expense[]>(`/expenses/?${params}`);
   },
 
   listByCategory: (category: string, dateFrom?: string, dateTo?: string) => {
     const params = new URLSearchParams({ category });
+    if (dateFrom) params.set("date_from", dateFrom);
+    if (dateTo) params.set("date_to", dateTo);
+    return request<Expense[]>(`/expenses/?${params}`);
+  },
+
+  listByMerchant: (merchant: string, dateFrom?: string, dateTo?: string) => {
+    const params = new URLSearchParams({ merchant });
+    if (dateFrom) params.set("date_from", dateFrom);
+    if (dateTo) params.set("date_to", dateTo);
+    return request<Expense[]>(`/expenses/?${params}`);
+  },
+
+  listByMonth: (month: string, dateFrom?: string, dateTo?: string) => {
+    // month is "YYYY-MM", use year+month params for exact match
+    const [y, m] = month.split("-");
+    const params = new URLSearchParams({ year: y, month: m });
     if (dateFrom) params.set("date_from", dateFrom);
     if (dateTo) params.set("date_to", dateTo);
     return request<Expense[]>(`/expenses/?${params}`);

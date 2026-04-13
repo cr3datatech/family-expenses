@@ -49,6 +49,9 @@ def row_to_expense(row: sqlite3.Row) -> dict:
     items_raw = d.get("items", "[]")
     d["items"] = json.loads(items_raw) if isinstance(items_raw, str) else items_raw
     d["ai_extracted"] = bool(d.get("ai_extracted", 0))
+    d["is_shared"] = bool(d.get("is_shared", 1))
+    sw_raw = d.get("shared_with")
+    d["shared_with"] = json.loads(sw_raw) if sw_raw else []
     d["user_id"] = int(d["user_id"])
     return d
 
@@ -85,8 +88,12 @@ def list_expenses(
     month: int | None = Query(None),
     card: str | None = Query(None),
     category: str | None = Query(None),
+    merchant: str | None = Query(None),
     date_from: str | None = Query(None),
     date_to: str | None = Query(None),
+    is_shared: bool | None = Query(None),
+    attributed_to: int | None = Query(None),
+    shared_with_user: int | None = Query(None),
     db: sqlite3.Connection = Depends(get_db),
 ):
     query = f"{EXPENSE_SELECT} WHERE 1=1"
@@ -107,6 +114,22 @@ def list_expenses(
     if category is not None:
         query += " AND e.category = ?"
         params.append(category)
+    if merchant is not None:
+        query += " AND LOWER(e.merchant) = LOWER(?)"
+        params.append(merchant)
+    if is_shared is not None:
+        query += " AND e.is_shared = ?"
+        params.append(1 if is_shared else 0)
+    if attributed_to is not None:
+        query += " AND e.user_id = ? AND e.is_shared = 0"
+        params.append(attributed_to)
+    if shared_with_user is not None:
+        query += (
+            " AND e.is_shared = 1"
+            " AND (e.shared_with IS NULL OR EXISTS"
+            " (SELECT 1 FROM json_each(e.shared_with) WHERE CAST(value AS INTEGER) = ?))"
+        )
+        params.append(shared_with_user)
     query += " ORDER BY e.date DESC, e.id DESC"
     rows = db.execute(query, params).fetchall()
     return [row_to_expense(r) for r in rows]
@@ -176,9 +199,10 @@ def create_expense(
         receipt_path = _archive_tmp_receipt(receipt_path, expense, current.username)
 
     items_json = json.dumps([item.model_dump() for item in expense.items])
+    shared_with_json = json.dumps(expense.shared_with) if expense.is_shared else None
     cursor = db.execute(
-        "INSERT INTO expenses (date, merchant, items, total, currency, category, card, note, receipt_photo_path, ai_extracted, user_id) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO expenses (date, merchant, items, total, currency, category, card, note, receipt_photo_path, ai_extracted, user_id, is_shared, shared_with) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             expense.date,
             expense.merchant,
@@ -191,6 +215,8 @@ def create_expense(
             receipt_path,
             int(expense.ai_extracted),
             uid,
+            1 if expense.is_shared else 0,
+            shared_with_json,
         ),
     )
     db.commit()
@@ -357,6 +383,12 @@ def update_expense(
                 ok = db.execute("SELECT id FROM users WHERE id = ?", (uid,)).fetchone()
                 if ok is None:
                     raise HTTPException(status_code=400, detail="Invalid user_id")
+
+    if "is_shared" in updates:
+        updates["is_shared"] = 1 if updates["is_shared"] else 0
+
+    if "shared_with" in updates:
+        updates["shared_with"] = json.dumps(updates["shared_with"]) if updates["shared_with"] is not None else None
 
     if "items" in updates and updates["items"] is not None:
         updates["items"] = json.dumps(

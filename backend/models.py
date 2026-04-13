@@ -22,6 +22,8 @@ class ExpenseCreate(BaseModel):
     note: Optional[str] = None
     receipt_photo_path: Optional[str] = None
     ai_extracted: bool = False
+    is_shared: bool = True
+    shared_with: list[int] = []
     user_id: Optional[int] = Field(
         default=None,
         description="Superuser only: attribute expense to another user",
@@ -37,6 +39,8 @@ class ExpenseUpdate(BaseModel):
     category: Optional[str] = None
     card: Optional[str] = None
     note: Optional[str] = None
+    is_shared: Optional[bool] = None
+    shared_with: Optional[list[int]] = None
     user_id: Optional[int] = Field(
         default=None,
         description="Superuser only: change attributed user",
@@ -56,6 +60,8 @@ class ExpenseResponse(BaseModel):
     receipt_photo_path: Optional[str]
     ai_extracted: bool
     created_at: str
+    is_shared: bool
+    shared_with: list[int]
     user_id: int
     attributed_username: str
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast, ToastProvider } from "@/components/Toast";
 import { todayISO } from "@/lib/dates";
 import { api, AnalyticsData, Expense, ExpenseCreate, ReceiptScanResult, User } from "@/lib/api";
@@ -151,7 +151,7 @@ function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
   };
 
   return (
-    <div className="p-4 max-w-sm mx-auto pt-16">
+    <div className="p-4 max-w-lg mx-auto pt-16">
       <h1 className="text-xl font-bold text-snap-800 mb-6 text-center">Receipts</h1>
       <div className="space-y-3 bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(34,197,94,0.08)]">
         {done ? (
@@ -224,7 +224,7 @@ function ResetPasswordForm({ token, onLoggedIn }: { token: string; onLoggedIn: (
   };
 
   return (
-    <div className="p-4 max-w-sm mx-auto pt-16">
+    <div className="p-4 max-w-lg mx-auto pt-16">
       <h1 className="text-xl font-bold text-snap-800 mb-6 text-center">Receipts</h1>
       <div className="space-y-3 bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(34,197,94,0.08)]">
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -287,7 +287,7 @@ function LoginForm({ onLoggedIn }: { onLoggedIn: (u: User) => void }) {
   };
 
   return (
-    <div className="p-4 max-w-sm mx-auto pt-16">
+    <div className="p-4 max-w-lg mx-auto pt-16">
       <h1 className="text-xl font-bold text-snap-800 mb-6 text-center">Receipts</h1>
       <form onSubmit={handleSubmit} className="space-y-3 bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(34,197,94,0.08)]">
         {err && <p className="text-sm text-red-600">{err}</p>}
@@ -328,6 +328,76 @@ function LoginForm({ onLoggedIn }: { onLoggedIn: (u: User) => void }) {
   );
 }
 
+function HeaderMenu({
+  username,
+  isSuperuser,
+  onSearch,
+  onCharts,
+  onPersonal,
+  onAllExpenses,
+  onUsers,
+  onLogout,
+}: {
+  username: string;
+  isSuperuser: boolean;
+  onSearch: () => void;
+  onCharts: () => void;
+  onPersonal: () => void;
+  onAllExpenses: () => void;
+  onUsers: () => void;
+  onLogout: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const item = (label: string, onClick: () => void, danger = false) => (
+    <button
+      type="button"
+      onClick={() => { setOpen(false); onClick(); }}
+      className={`w-full text-left px-4 py-2.5 text-sm font-medium hover:bg-snap-50 transition-colors ${danger ? "text-red-500" : "text-snap-800"}`}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white border border-snap-200 text-snap-700 hover:bg-snap-50 transition-colors"
+        aria-label="Menu"
+      >
+        <span className="text-[11px] font-semibold truncate max-w-[80px]">{username}</span>
+        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-snap-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-1.5 w-44 bg-white rounded-2xl shadow-lg border border-snap-100 overflow-hidden z-50">
+          {item("Search", onSearch)}
+          {item("Charts", onCharts)}
+          {item("Personal", onPersonal)}
+          {item("All Expenses", onAllExpenses)}
+          {isSuperuser && item("Users", onUsers)}
+          <div className="border-t border-snap-100" />
+          {item("Log out", onLogout, true)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ExpensesPage({
   user,
   onLogout,
@@ -338,11 +408,10 @@ function ExpensesPage({
   const { toast } = useToast();
   const [cards, setCards] = useState<string[]>(["Credit Card"]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [allExpenses, setAllExpenses] = useState<Expense[]>([]);
   const [summary, setSummary] = useState<{ total: number; count: number; by_category: Record<string, number> } | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showReview, setShowReview] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
+  const [showAllExpenses, setShowAllExpenses] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   /** `null` = idle; otherwise current step message for receipt scan */
   const [scanPhase, setScanPhase] = useState<string | null>(null);
@@ -350,13 +419,16 @@ function ExpensesPage({
   const scanning = scanPhase !== null;
   const [scanResult, setScanResult] = useState<ReceiptScanResult | null>(null);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [showPersonal, setShowPersonal] = useState(false);
   const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [expenseView, setExpenseView] = useState<"all" | "shared" | "personal">("all");
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Expense[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [preset, setPreset] = useState("month");
 
   const refreshUsers = useCallback(() => {
     if (!user.is_superuser) return;
@@ -369,18 +441,28 @@ function ExpensesPage({
 
   const loadExpenses = useCallback(async () => {
     const now = new Date();
-    const [exp, sum] = await Promise.all([
-      api.list(now.getFullYear(), now.getMonth() + 1),
-      api.summary(now.getFullYear(), now.getMonth() + 1),
-    ]);
+    const isShared = expenseView === "shared" ? true : expenseView === "personal" ? false : undefined;
+    const attributedTo = expenseView === "personal" ? user.id : undefined;
+    const { from, to } = getAnalyticsRange(preset);
+    const exp = await api.list(undefined, undefined, isShared, attributedTo, from, to);
     setExpenses(exp);
-    setSummary(sum);
-  }, []);
+    // compute summary from fetched expenses
+    const by_category: Record<string, number> = {};
+    let total = 0;
+    for (const e of exp) {
+      total += e.total;
+      by_category[e.category] = (by_category[e.category] ?? 0) + e.total;
+    }
+    setSummary({ total, count: exp.length, by_category });
+  }, [expenseView, user.id, preset]);
 
   useEffect(() => {
     loadExpenses();
-    api.cards().then(setCards).catch(() => {});
   }, [loadExpenses]);
+
+  useEffect(() => {
+    api.cards().then(setCards).catch(() => {});
+  }, []);
 
   const handlePhoto = async (file: File) => {
     const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -459,15 +541,6 @@ function ExpensesPage({
     }
   };
 
-  const handleOpenHistory = async () => {
-    try {
-      const all = await api.list();
-      setAllExpenses(all);
-      setShowHistory(true);
-    } catch {
-      toast("Failed to load history");
-    }
-  };
 
   const handleEditSave = async (data: ExpenseCreate) => {
     if (!editingExpense) return;
@@ -475,8 +548,6 @@ function ExpensesPage({
       await api.update(editingExpense.id, data);
       toast("Expense updated");
       setEditingExpense(null);
-      const all = await api.list();
-      setAllExpenses(all);
       loadExpenses();
     } catch {
       toast("Failed to update expense");
@@ -500,49 +571,46 @@ function ExpensesPage({
   return (
     <>
       {showAnalytics && <AnalyticsPanel onClose={() => setShowAnalytics(false)} cards={cards} currentUser={user} allUsers={allUsers} />}
-      <div className="p-4 space-y-3">
-      <div className="sticky top-0 z-40 bg-snap-50/90 backdrop-blur-sm py-3 -mx-4 px-4 -mt-4 mb-2 flex items-center justify-between gap-2">
+      {showPersonal && <PersonalPanel onClose={() => setShowPersonal(false)} cards={cards} currentUser={user} allUsers={allUsers} />}
+      {showAllExpenses && <AllExpensesPanel onClose={() => setShowAllExpenses(false)} cards={cards} currentUser={user} allUsers={allUsers} />}
+      <div className="p-4 space-y-3 max-w-lg mx-auto">
+      <div className="sticky top-0 z-40 bg-snap-50/90 backdrop-blur-sm -mx-4 px-4 -mt-4 mb-2">
+        <div className="py-3 flex items-center justify-between gap-2">
         <h1 className="text-xl font-bold text-snap-800">Receipts</h1>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-[11px] text-skin-secondary truncate max-w-[100px]" title={user.username}>
-            {user.username}
-          </span>
-          <button
-            type="button"
-            onClick={() => { setSearchQuery(""); setSearchResults([]); setShowSearch(true); }}
-            className="text-[11px] font-semibold text-snap-600 px-2 py-1 rounded-lg bg-white border border-snap-200"
-          >
-            Search
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowAnalytics(true)}
-            className="text-[11px] font-semibold text-snap-600 px-2 py-1 rounded-lg bg-white border border-snap-200"
-          >
-            Charts
-          </button>
-          {user.is_superuser && (
+        <HeaderMenu
+          username={user.username}
+          isSuperuser={user.is_superuser}
+          onSearch={() => { setSearchQuery(""); setSearchResults([]); setShowSearch(true); }}
+          onCharts={() => setShowAnalytics(true)}
+          onPersonal={() => setShowPersonal(true)}
+          onAllExpenses={() => setShowAllExpenses(true)}
+          onUsers={() => { refreshUsers(); setShowAdmin(true); }}
+          onLogout={() => void onLogout()}
+        />
+        </div>
+        <div className="flex gap-2 pb-2 overflow-x-auto">
+          {ANALYTICS_PRESETS.map((p) => (
             <button
+              key={p.key}
               type="button"
-              onClick={() => { refreshUsers(); setShowAdmin(true); }}
-              className="text-[11px] font-semibold text-snap-600 px-2 py-1 rounded-lg bg-white border border-snap-200"
+              onClick={() => setPreset(p.key)}
+              className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                preset === p.key
+                  ? "bg-snap-500 text-white border-snap-500"
+                  : "bg-white text-snap-600 border-snap-200"
+              }`}
             >
-              Users
+              {p.label}
             </button>
-          )}
-          <button
-            type="button"
-            onClick={() => void onLogout()}
-            className="text-[11px] font-semibold text-skin-secondary px-2 py-1"
-          >
-            Log out
-          </button>
+          ))}
         </div>
       </div>
 
-      {/* Monthly Total */}
+      {/* Total */}
       <div className="bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(34,197,94,0.08)]">
-        <p className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide mb-1">This Month</p>
+        <p className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide mb-1">
+          {ANALYTICS_PRESETS.find(p => p.key === preset)?.label ?? "Total"}
+        </p>
         <p className="text-2xl font-bold text-snap-800">
           {summary?.total?.toFixed(2) || "0.00"} EUR
         </p>
@@ -564,12 +632,6 @@ function ExpensesPage({
         >
           Enter manually
         </button>
-        <button
-          onClick={handleOpenHistory}
-          className="w-full py-3.5 rounded-[14px] border-2 border-dashed border-snap-300 bg-snap-50 text-snap-600 text-[13px] font-semibold text-center active:bg-snap-100 transition-colors"
-        >
-          History
-        </button>
       </div>
 
       {/* Summary */}
@@ -585,13 +647,31 @@ function ExpensesPage({
             ))}
           </div>
         ) : (
-          <p className="text-sm text-skin-secondary">No data yet this month.</p>
+          <p className="text-sm text-skin-secondary">No expenses in this period.</p>
         )}
       </div>
 
       {/* Recent Expenses */}
       <div>
-        <p className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide mb-2">Recent Expenses</p>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide">Recent Expenses</p>
+          <div className="flex gap-1">
+            {(["all", "shared", "personal"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setExpenseView(v)}
+                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-colors ${
+                  expenseView === v
+                    ? "bg-snap-500 text-white border-snap-500"
+                    : "bg-white text-snap-600 border-snap-200"
+                }`}
+              >
+                {v === "all" ? "All" : v === "shared" ? "Shared" : "Mine"}
+              </button>
+            ))}
+          </div>
+        </div>
         {expenses.length > 0 ? (
           <div className="space-y-2">
             {expenses.map((exp) => (
@@ -617,7 +697,10 @@ function ExpensesPage({
                       <div className="flex gap-2 mt-0.5 flex-wrap">
                         <span className="text-[10px] text-skin-secondary capitalize">{exp.category}</span>
                         <span className="text-[10px] text-skin-secondary">{exp.card}</span>
-                        <span className="text-[10px] text-snap-500">{exp.attributed_username}</span>
+                        {exp.is_shared
+                          ? <span className="text-[10px] text-snap-400">Shared</span>
+                          : <span className="text-[10px] font-semibold text-snap-600">{exp.attributed_username}</span>
+                        }
                       </div>
                       {exp.note && <p className="text-[11px] text-skin-secondary mt-0.5 truncate">{exp.note}</p>}
                       <p className="text-[10px] text-skin-secondary mt-0.5">{exp.date}</p>
@@ -691,11 +774,6 @@ function ExpensesPage({
         <ManualEntryForm cards={cards} onSubmit={handleSaveManual} currentUser={user} allUsers={allUsers} />
       </Modal>
 
-      {/* History Modal */}
-      <Modal open={showHistory && !editingExpense} onClose={() => setShowHistory(false)} title="Expense History">
-        <HistoryList expenses={allExpenses} onEdit={(exp) => setEditingExpense(exp)} />
-      </Modal>
-
       {/* Edit Modal */}
       <Modal open={!!editingExpense} onClose={() => setEditingExpense(null)} title="Edit Expense">
         {editingExpense && (
@@ -717,7 +795,6 @@ function ExpensesPage({
             users={allUsers}
             currentId={user.id}
             onRefresh={() => { refreshUsers(); toast("Updated"); }}
-            onClose={() => setShowAdmin(false)}
           />
         </Modal>
       )}
@@ -764,7 +841,9 @@ function ReceiptReviewForm({
   const [card, setCard] = useState(cards[0]);
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [isShared, setIsShared] = useState(true);
   const [attributedUserId, setAttributedUserId] = useState(currentUser.id);
+  const [sharedWith, setSharedWith] = useState<number[]>(allUsers.map(u => u.id));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -781,8 +860,10 @@ function ReceiptReviewForm({
         card,
         note: note || undefined,
         receipt_photo_path: scanResult.receipt_path || undefined,
+        is_shared: isShared,
+        shared_with: isShared ? sharedWith : undefined,
       };
-      if (currentUser.is_superuser) {
+      if (!isShared && currentUser.is_superuser) {
         payload.user_id = attributedUserId;
       }
       onSubmit(payload);
@@ -835,19 +916,14 @@ function ReceiptReviewForm({
       <FormField label="Note (optional)">
         <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a note..." className="form-input" />
       </FormField>
-      {currentUser.is_superuser && allUsers.length > 0 && (
-        <FormField label="Attributed to">
-          <select
-            value={attributedUserId}
-            onChange={(e) => setAttributedUserId(Number(e.target.value))}
-            className="form-input"
-          >
-            {allUsers.map((u) => (
-              <option key={u.id} value={u.id}>{u.username}{u.is_superuser ? " (admin)" : ""}</option>
-            ))}
-          </select>
-        </FormField>
-      )}
+      <AttributionPicker
+        currentUser={currentUser}
+        allUsers={allUsers}
+        isShared={isShared}
+        attributedUserId={attributedUserId}
+        sharedWith={sharedWith}
+        onChange={(shared, uid, sw) => { setIsShared(shared); setAttributedUserId(uid); setSharedWith(sw); }}
+      />
       <div className="flex gap-2 pt-1">
         <button type="button" onClick={onCancel} className="flex-1 py-2.5 rounded-xl border border-snap-200 text-skin-secondary text-sm font-semibold">Cancel</button>
         <button type="submit" disabled={saving || !total} className="flex-1 py-2.5 rounded-xl bg-snap-500 text-white text-sm font-semibold active:bg-snap-600 transition-colors disabled:opacity-50">
@@ -889,7 +965,9 @@ function ManualEntryForm({
   const [card, setCard] = useState(cards[0]);
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [isShared, setIsShared] = useState(true);
   const [attributedUserId, setAttributedUserId] = useState(currentUser.id);
+  const [sharedWith, setSharedWith] = useState<number[]>(allUsers.map(u => u.id));
 
   const handleMerchantBlur = async () => {
     if (!merchant) return;
@@ -949,8 +1027,10 @@ function ManualEntryForm({
         category,
         card,
         note: note || undefined,
+        is_shared: isShared,
+        shared_with: isShared ? sharedWith : undefined,
       };
-      if (currentUser.is_superuser) {
+      if (!isShared && currentUser.is_superuser) {
         payload.user_id = attributedUserId;
       }
       onSubmit(payload);
@@ -1001,15 +1081,14 @@ function ManualEntryForm({
       <FormField label="Note (optional)">
         <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a note..." className="form-input" />
       </FormField>
-      {currentUser.is_superuser && allUsers.length > 0 && (
-        <FormField label="Attributed to">
-          <select value={attributedUserId} onChange={(e) => setAttributedUserId(Number(e.target.value))} className="form-input">
-            {allUsers.map((u) => (
-              <option key={u.id} value={u.id}>{u.username}{u.is_superuser ? " (admin)" : ""}</option>
-            ))}
-          </select>
-        </FormField>
-      )}
+      <AttributionPicker
+        currentUser={currentUser}
+        allUsers={allUsers}
+        isShared={isShared}
+        attributedUserId={attributedUserId}
+        sharedWith={sharedWith}
+        onChange={(shared, uid, sw) => { setIsShared(shared); setAttributedUserId(uid); setSharedWith(sw); }}
+      />
       <button type="submit" disabled={saving || !total} className="w-full py-2.5 rounded-xl bg-snap-500 text-white text-sm font-semibold active:bg-snap-600 transition-colors disabled:opacity-50">
         {saving ? "Saving..." : "Save Expense"}
       </button>
@@ -1066,7 +1145,10 @@ function HistoryList({ expenses, onEdit }: { expenses: Expense[]; onEdit: (expen
                   <div className="flex gap-2 mt-0.5 flex-wrap">
                     <span className="text-[10px] text-skin-secondary capitalize">{exp.category}</span>
                     <span className="text-[10px] text-skin-secondary">{exp.date}</span>
-                    <span className="text-[10px] text-snap-500">{exp.attributed_username}</span>
+                    {exp.is_shared
+                      ? <span className="text-[10px] text-snap-400">Shared</span>
+                      : <span className="text-[10px] font-semibold text-snap-600">{exp.attributed_username}</span>
+                    }
                   </div>
                 </div>
                 <span className="text-sm font-bold text-snap-600 whitespace-nowrap">{exp.total.toFixed(2)}</span>
@@ -1099,7 +1181,11 @@ function EditExpenseForm({
   const [note, setNote] = useState(expense.note || "");
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isShared, setIsShared] = useState(expense.is_shared);
   const [attributedUserId, setAttributedUserId] = useState(expense.user_id);
+  const [sharedWith, setSharedWith] = useState<number[]>(
+    expense.shared_with?.length ? expense.shared_with : allUsers.map(u => u.id)
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1114,8 +1200,10 @@ function EditExpenseForm({
         category,
         card,
         note: note || undefined,
+        is_shared: isShared,
+        shared_with: isShared ? sharedWith : undefined,
       };
-      if (currentUser.is_superuser) {
+      if (!isShared && currentUser.is_superuser) {
         payload.user_id = attributedUserId;
       }
       onSubmit(payload);
@@ -1178,19 +1266,14 @@ function EditExpenseForm({
       <FormField label="Note (optional)">
         <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a note..." className="form-input" />
       </FormField>
-      {currentUser.is_superuser && allUsers.length > 0 && (
-        <FormField label="Attributed to">
-          <select
-            value={attributedUserId}
-            onChange={(e) => setAttributedUserId(Number(e.target.value))}
-            className="form-input"
-          >
-            {allUsers.map((u) => (
-              <option key={u.id} value={u.id}>{u.username}</option>
-            ))}
-          </select>
-        </FormField>
-      )}
+      <AttributionPicker
+        currentUser={currentUser}
+        allUsers={allUsers}
+        isShared={isShared}
+        attributedUserId={attributedUserId}
+        sharedWith={sharedWith}
+        onChange={(shared, uid, sw) => { setIsShared(shared); setAttributedUserId(uid); setSharedWith(sw); }}
+      />
       <div className="flex gap-2 pt-1">
         <button type="button" onClick={onCancel} className="flex-1 py-2.5 rounded-xl border border-snap-200 text-skin-secondary text-sm font-semibold">Cancel</button>
         <button type="submit" disabled={saving || !total} className="flex-1 py-2.5 rounded-xl bg-snap-500 text-white text-sm font-semibold active:bg-snap-600 transition-colors disabled:opacity-50">
@@ -1244,223 +1327,787 @@ function EditExpenseForm({
 }
 
 
-function UserAdminPanel({
-  users,
-  currentId,
-  onRefresh,
-  onClose,
+function AttributionPicker({
+  currentUser,
+  allUsers,
+  isShared,
+  attributedUserId,
+  sharedWith,
+  onChange,
 }: {
-  users: User[];
-  currentId: number;
-  onRefresh: () => void;
-  onClose: () => void;
+  currentUser: User;
+  allUsers: User[];
+  isShared: boolean;
+  attributedUserId: number;
+  sharedWith: number[];
+  onChange: (isShared: boolean, userId: number, sharedWith: number[]) => void;
 }) {
-  const [newUsername, setNewUsername] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [newEmail, setNewEmail] = useState("");
-  const [newSuper, setNewSuper] = useState(false);
+  const personalOptions: { label: string; userId: number }[] = currentUser.is_superuser
+    ? allUsers.map((u) => ({ label: u.username, userId: u.id }))
+    : [{ label: "Mine", userId: currentUser.id }];
+
+  const toggleSharedWith = (uid: number) => {
+    const next = sharedWith.includes(uid) ? sharedWith.filter((id) => id !== uid) : [...sharedWith, uid];
+    onChange(true, attributedUserId, next);
+  };
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide">For</p>
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          type="button"
+          onClick={() => onChange(true, attributedUserId, sharedWith.length ? sharedWith : allUsers.map(u => u.id))}
+          className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+            isShared ? "bg-snap-500 text-white border-snap-500" : "bg-white text-snap-600 border-snap-200 hover:border-snap-400"
+          }`}
+        >
+          Shared
+        </button>
+        {personalOptions.map((opt) => {
+          const active = !isShared && attributedUserId === opt.userId;
+          return (
+            <button
+              key={opt.userId}
+              type="button"
+              onClick={() => onChange(false, opt.userId, sharedWith)}
+              className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                active ? "bg-snap-500 text-white border-snap-500" : "bg-white text-snap-600 border-snap-200 hover:border-snap-400"
+              }`}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+      {isShared && allUsers.length > 0 && (
+        <div>
+          <p className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide mb-1.5">Shared among</p>
+          <div className="flex flex-wrap gap-1.5">
+            {allUsers.map((u) => {
+              const active = sharedWith.includes(u.id);
+              return (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => toggleSharedWith(u.id)}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                    active ? "bg-snap-300 text-snap-900 border-snap-300" : "bg-white text-snap-400 border-snap-200 hover:border-snap-400"
+                  }`}
+                >
+                  {u.username}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EyeIcon({ open }: { open: boolean }) {
+  return open ? (
+    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+  ) : (
+    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+  );
+}
+
+function CreateUserModal({ onCreated, onClose }: { onCreated: () => void; onClose: () => void }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
+  const [isSuper, setIsSuper] = useState(false);
+  const [showPw, setShowPw] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [pwEdit, setPwEdit] = useState<Record<number, string>>({});
-  const [emailEdit, setEmailEdit] = useState<Record<number, string>>({});
-  const [showNewPw, setShowNewPw] = useState(false);
-  const [showPwEdit, setShowPwEdit] = useState<Record<number, boolean>>({});
+  const [error, setError] = useState<string | null>(null);
 
-  const createUser = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newUsername.trim() || !newPassword || !newEmail.trim()) return;
+    if (!username.trim() || !password || !email.trim()) return;
     setBusy(true);
+    setError(null);
     try {
-      await api.createUser({
-        username: newUsername.trim(),
-        password: newPassword,
-        is_superuser: newSuper,
-        email: newEmail.trim(),
-      });
-      setNewUsername("");
-      setNewPassword("");
-      setNewEmail("");
-      setNewSuper(false);
-      onRefresh();
-    } catch {
-      alert("Could not create user (duplicate name?)");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const setPassword = async (id: number) => {
-    const pw = pwEdit[id]?.trim();
-    if (!pw) return;
-    setBusy(true);
-    try {
-      await api.updateUser(id, { password: pw });
-      setPwEdit((p) => ({ ...p, [id]: "" }));
-      onRefresh();
-    } catch {
-      alert("Could not update password");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const setEmail = async (id: number) => {
-    const email = emailEdit[id] ?? "";
-    setBusy(true);
-    try {
-      await api.updateUser(id, { email: email.trim() });
-      setEmailEdit((p) => ({ ...p, [id]: "" }));
-      onRefresh();
-    } catch {
-      alert("Could not update email");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const remove = async (id: number) => {
-    if (!confirm("Delete this user? They must have no attributed expenses.")) return;
-    setBusy(true);
-    try {
-      await api.deleteUser(id);
-      onRefresh();
-    } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : "Could not delete user");
+      await api.createUser({ username: username.trim(), password, is_superuser: isSuper, email: email.trim() });
+      onCreated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not create user");
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <div className="space-y-4 max-h-[70vh] overflow-y-auto">
-      <form onSubmit={createUser} className="space-y-2 p-3 rounded-xl bg-snap-50/80 border border-snap-100">
-        <p className="text-[11px] font-bold text-skin-secondary uppercase">Add user</p>
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <input
+        className="form-input w-full"
+        placeholder="Username"
+        autoComplete="off"
+        value={username}
+        onChange={(e) => setUsername(e.target.value)}
+        required
+      />
+      <input
+        className="form-input w-full"
+        type="email"
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+      />
+      <div className="relative">
         <input
-          className="form-input w-full"
-          placeholder="Username"
-          autoComplete="off"
-          value={newUsername}
-          onChange={(e) => setNewUsername(e.target.value)}
+          className="form-input w-full pr-9"
+          type={showPw ? "text" : "password"}
+          placeholder="Password"
+          autoComplete="new-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
         />
-        <div className="relative">
-          <input
-            className="form-input w-full pr-8"
-            type={showNewPw ? "text" : "password"}
-            placeholder="Password"
-            autoComplete="new-password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-          />
+        <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-snap-400 hover:text-snap-600" tabIndex={-1}>
+          <EyeIcon open={showPw} />
+        </button>
+      </div>
+      <label className="flex items-center gap-2 text-sm text-snap-700 cursor-pointer">
+        <input type="checkbox" checked={isSuper} onChange={(e) => setIsSuper(e.target.checked)} />
+        Superuser
+      </label>
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      <div className="flex gap-2 pt-1">
+        <button type="button" onClick={onClose} className="flex-1 py-2 rounded-xl border border-snap-200 text-sm text-snap-600 font-semibold">Cancel</button>
+        <button type="submit" disabled={busy} className="flex-1 py-2 rounded-xl bg-snap-500 text-white text-sm font-semibold disabled:opacity-50">
+          {busy ? "Creating…" : "Create user"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function EditUserModal({ user, currentId, onSaved, onClose }: { user: User; currentId: number; onSaved: () => void; onClose: () => void }) {
+  const [email, setEmail] = useState(user.email ?? "");
+  const [password, setPassword] = useState("");
+  const [isSuper, setIsSuper] = useState(user.is_superuser);
+  const [showPw, setShowPw] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const updates: { email?: string; password?: string; is_superuser?: boolean } = {
+        email: email.trim() || undefined,
+        is_superuser: isSuper,
+      };
+      if (password) updates.password = password;
+      await api.updateUser(user.id, updates);
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save changes");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm("Delete this user? They must have no attributed expenses.")) return;
+    setBusy(true);
+    try {
+      await api.deleteUser(user.id);
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete user");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSave} className="space-y-3">
+      <div className="px-3 py-2 rounded-xl bg-snap-50 border border-snap-100">
+        <p className="text-[11px] text-skin-secondary">Username</p>
+        <p className="text-sm font-semibold text-snap-800">{user.username}</p>
+      </div>
+      <input
+        className="form-input w-full"
+        type="email"
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <div className="relative">
+        <input
+          className="form-input w-full pr-9"
+          type={showPw ? "text" : "password"}
+          placeholder="New password (leave blank to keep)"
+          autoComplete="new-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-snap-400 hover:text-snap-600" tabIndex={-1}>
+          <EyeIcon open={showPw} />
+        </button>
+      </div>
+      <label className="flex items-center gap-2 text-sm text-snap-700 cursor-pointer">
+        <input type="checkbox" checked={isSuper} onChange={(e) => setIsSuper(e.target.checked)} />
+        Superuser
+      </label>
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      <div className="flex gap-2 pt-1">
+        <button type="button" onClick={onClose} className="flex-1 py-2 rounded-xl border border-snap-200 text-sm text-snap-600 font-semibold">Cancel</button>
+        <button type="submit" disabled={busy} className="flex-1 py-2 rounded-xl bg-snap-500 text-white text-sm font-semibold disabled:opacity-50">
+          {busy ? "Saving…" : "Save"}
+        </button>
+      </div>
+      {user.id !== currentId && (
+        <button type="button" disabled={busy} onClick={handleDelete} className="w-full py-1.5 text-xs text-red-600 font-semibold">
+          Delete user
+        </button>
+      )}
+    </form>
+  );
+}
+
+function UserAdminPanel({
+  users,
+  currentId,
+  onRefresh,
+}: {
+  users: User[];
+  currentId: number;
+  onRefresh: () => void;
+}) {
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+
+  const handleSaved = () => {
+    setEditingUser(null);
+    setShowCreate(false);
+    onRefresh();
+  };
+
+  return (
+    <div className="space-y-3 max-h-[70vh] overflow-y-auto">
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="New user">
+        <CreateUserModal onCreated={handleSaved} onClose={() => setShowCreate(false)} />
+      </Modal>
+      <Modal open={!!editingUser} onClose={() => setEditingUser(null)} title="Edit user">
+        {editingUser && (
+          <EditUserModal user={editingUser} currentId={currentId} onSaved={handleSaved} onClose={() => setEditingUser(null)} />
+        )}
+      </Modal>
+
+      <div className="space-y-1.5">
+        {users.map((u) => (
           <button
+            key={u.id}
             type="button"
-            onClick={() => setShowNewPw((v) => !v)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-snap-400 hover:text-snap-600"
-            tabIndex={-1}
+            onClick={() => setEditingUser(u)}
+            className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl border border-snap-100 hover:bg-snap-50 transition-colors"
           >
-            {showNewPw ? (
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-snap-800 truncate">{u.username}</p>
+              {u.email && <p className="text-xs text-skin-secondary truncate">{u.email}</p>}
+            </div>
+            {u.is_superuser && (
+              <span className="text-[10px] uppercase font-bold text-snap-500 shrink-0">admin</span>
             )}
           </button>
-        </div>
-        <input
-          className="form-input w-full"
-          type="email"
-          placeholder="Email"
-          required
-          value={newEmail}
-          onChange={(e) => setNewEmail(e.target.value)}
-        />
-        <label className="flex items-center gap-2 text-sm text-snap-700">
-          <input type="checkbox" checked={newSuper} onChange={(e) => setNewSuper(e.target.checked)} />
-          Superuser
-        </label>
-        <button
-          type="submit"
-          disabled={busy}
-          className="w-full py-2 rounded-xl bg-snap-500 text-white text-sm font-semibold disabled:opacity-50"
-        >
-          Create user
-        </button>
-      </form>
+        ))}
+      </div>
 
-      <div className="space-y-2">
-        {users.map((u) => (
-          <div key={u.id} className="p-3 rounded-xl border border-snap-100 space-y-2">
-            <div className="flex justify-between items-center gap-2">
-              <div>
-                <span className="font-semibold text-snap-800">{u.username}</span>
-                {u.email && <p className="text-[11px] text-skin-secondary">{u.email}</p>}
-              </div>
-              {u.is_superuser && (
-                <span className="text-[10px] uppercase font-bold text-snap-600">admin</span>
-              )}
-            </div>
-            <div className="flex gap-1">
-              <input
-                className="form-input flex-1 text-sm"
-                type="email"
-                placeholder={u.email ?? "Email"}
-                value={emailEdit[u.id] ?? ""}
-                onChange={(e) => setEmailEdit((p) => ({ ...p, [u.id]: e.target.value }))}
-              />
+      <button
+        type="button"
+        onClick={() => setShowCreate(true)}
+        className="w-full py-2 rounded-xl bg-snap-500 text-white text-sm font-semibold"
+      >
+        + New user
+      </button>
+    </div>
+  );
+}
+
+
+function PersonalPanel({
+  onClose,
+  cards,
+  currentUser,
+  allUsers,
+}: {
+  onClose: () => void;
+  cards: string[];
+  currentUser: User;
+  allUsers: User[];
+}) {
+  const [preset, setPreset] = useState("month");
+  const [activePersonal, setActivePersonal] = useState<Set<number>>(new Set([currentUser.id]));
+  const [showShared, setShowShared] = useState(false);
+
+  // Default shared filter to Christa + Craig (or all users if not found)
+  const defaultSharedFilter = (): Set<number> => {
+    const named = allUsers.filter(u => ["christa", "craig"].includes(u.username.toLowerCase()));
+    const ids = named.length > 0 ? named : allUsers;
+    return new Set(ids.map(u => u.id));
+  };
+  const [sharedFilter, setSharedFilter] = useState<Set<number>>(defaultSharedFilter);
+
+  const [expenses, setExpenses] = useState<Expense[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+
+  const userById = Object.fromEntries(allUsers.map(u => [u.id, u]));
+  const visibleUsers = currentUser.is_superuser ? allUsers : [currentUser];
+
+  const effectiveAmount = (exp: Expense): number => {
+    if (!exp.is_shared) return exp.total;
+    const parts = exp.shared_with.length || allUsers.length || 1;
+    return exp.total / parts;
+  };
+
+  const togglePersonal = (uid: number) => setActivePersonal(prev => {
+    const next = new Set(prev);
+    next.has(uid) ? next.delete(uid) : next.add(uid);
+    return next;
+  });
+
+  const toggleSharedFilter = (uid: number) => setSharedFilter(prev => {
+    const next = new Set(prev);
+    next.has(uid) ? next.delete(uid) : next.add(uid);
+    return next;
+  });
+
+  useEffect(() => {
+    const { from, to } = getAnalyticsRange(preset);
+    const calls: Promise<Expense[]>[] = [];
+    activePersonal.forEach(uid => calls.push(api.listPersonalFor(uid, from, to)));
+    if (showShared) calls.push(api.listAllShared(from, to));
+    if (calls.length === 0) { setExpenses([]); return; }
+
+    setLoading(true);
+    Promise.all(calls)
+      .then(results => {
+        const seen = new Set<number>();
+        const merged: Expense[] = [];
+        for (const list of results)
+          for (const e of list)
+            if (!seen.has(e.id)) { seen.add(e.id); merged.push(e); }
+
+        const filtered = merged.filter(e => {
+          if (!e.is_shared) return true;
+          if (sharedFilter.size === 0) return true;
+          const sw = e.shared_with;
+          if (!sw || sw.length === 0) return true;
+          return [...sharedFilter].every(uid => sw.includes(uid));
+        });
+        filtered.sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+        setExpenses(filtered);
+      })
+      .catch(() => setExpenses([]))
+      .finally(() => setLoading(false));
+  }, [preset, activePersonal, showShared, sharedFilter]);
+
+  const refresh = () => setActivePersonal(prev => new Set(prev));
+
+  const handleEditSave = async (data: ExpenseCreate) => {
+    if (!editingExpense) return;
+    await api.update(editingExpense.id, data);
+    setEditingExpense(null);
+    refresh();
+  };
+
+  const handleDelete = async (id: number, deleteArchive = false) => {
+    await api.delete(id, deleteArchive);
+    setEditingExpense(null);
+    refresh();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-snap-50 overflow-y-auto">
+      <Modal open={!!editingExpense} onClose={() => setEditingExpense(null)} title="Edit Expense">
+        {editingExpense && (
+          <EditExpenseForm
+            cards={cards}
+            expense={editingExpense}
+            onSubmit={handleEditSave}
+            onCancel={() => setEditingExpense(null)}
+            onDelete={(del) => handleDelete(editingExpense.id, del)}
+            currentUser={currentUser}
+            allUsers={allUsers}
+          />
+        )}
+      </Modal>
+
+      <div className="sticky top-0 z-10 bg-snap-50/90 backdrop-blur-sm border-b border-snap-100">
+        <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
+          <button type="button" onClick={onClose} className="text-sm font-semibold text-snap-600">← Back</button>
+          <h1 className="text-base font-bold text-snap-800 flex-1">Personal</h1>
+          {expenses && <span className="text-xs text-skin-secondary">{expenses.length} expense{expenses.length !== 1 ? "s" : ""}</span>}
+        </div>
+
+        {/* Date presets */}
+        <div className="max-w-lg mx-auto px-4 pb-2 flex gap-2">
+          {ANALYTICS_PRESETS.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => setPreset(p.key)}
+              className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                preset === p.key
+                  ? "bg-snap-500 text-white border-snap-500"
+                  : "bg-white text-snap-600 border-snap-200"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        {/* User / type filters */}
+        <div className="max-w-lg mx-auto px-4 pb-3 space-y-2">
+          <div className="flex flex-wrap gap-1.5">
+            {visibleUsers.map(u => (
               <button
+                key={u.id}
                 type="button"
-                disabled={busy}
-                onClick={() => void setEmail(u.id)}
-                className="px-2 py-1 text-xs font-semibold rounded-lg bg-snap-100 text-snap-700"
+                onClick={() => togglePersonal(u.id)}
+                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                  activePersonal.has(u.id) ? "bg-snap-500 text-white border-snap-500" : "bg-white text-snap-600 border-snap-200"
+                }`}
               >
-                Set
+                {u.id === currentUser.id ? "Mine" : u.username}
               </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setShowShared(v => !v)}
+              className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                showShared ? "bg-snap-500 text-white border-snap-500" : "bg-white text-snap-600 border-snap-200"
+              }`}
+            >
+              Shared
+            </button>
+          </div>
+
+          {showShared && allUsers.length > 0 && (
+            <div>
+              <p className="text-[10px] font-bold text-skin-secondary uppercase tracking-wide mb-1">Shared among</p>
+              <div className="flex flex-wrap gap-1.5">
+                {allUsers.map(u => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => toggleSharedFilter(u.id)}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                      sharedFilter.has(u.id) ? "bg-snap-300 text-snap-900 border-snap-300" : "bg-white text-snap-400 border-snap-200"
+                    }`}
+                  >
+                    {u.username}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-skin-secondary mt-1">
+                {sharedFilter.size === 0 ? "All shared expenses" : "Filtered by selected users"}
+              </p>
             </div>
-            <div className="flex gap-1">
-              <div className="relative flex-1">
-                <input
-                  className="form-input w-full text-sm pr-7"
-                  type={showPwEdit[u.id] ? "text" : "password"}
-                  placeholder="New password"
-                  autoComplete="new-password"
-                  value={pwEdit[u.id] ?? ""}
-                  onChange={(e) => setPwEdit((p) => ({ ...p, [u.id]: e.target.value }))}
-                />
+          )}
+        </div>
+      </div>
+
+      <div className="max-w-lg mx-auto p-4 space-y-2">
+        {loading && <p className="text-center text-sm text-skin-secondary py-8">Loading…</p>}
+        {!loading && expenses && expenses.length === 0 && (
+          <p className="text-center text-sm text-skin-secondary py-8">No expenses found.</p>
+        )}
+        {!loading && expenses && expenses.length > 0 && (
+          <>
+            {/* Total summary */}
+            <div className="bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(34,197,94,0.08)] mb-2">
+              <p className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide mb-1">Your share</p>
+              <p className="text-2xl font-bold text-snap-800">
+                {expenses.reduce((sum, e) => sum + effectiveAmount(e), 0).toFixed(2)} EUR
+              </p>
+              <p className="text-xs text-skin-secondary mt-0.5">
+                {expenses.length} expense{expenses.length !== 1 ? "s" : ""}
+                {expenses.some(e => e.is_shared) && (
+                  <> · full total {expenses.reduce((sum, e) => sum + e.total, 0).toFixed(2)} EUR</>
+                )}
+              </p>
+            </div>
+
+            {expenses.map(exp => {
+              const share = effectiveAmount(exp);
+              const parts = exp.is_shared ? (exp.shared_with.length || allUsers.length || 1) : 1;
+              return (
                 <button
+                  key={exp.id}
                   type="button"
-                  onClick={() => setShowPwEdit((p) => ({ ...p, [u.id]: !p[u.id] }))}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-snap-400 hover:text-snap-600"
-                  tabIndex={-1}
+                  onClick={() => setEditingExpense(exp)}
+                  className="w-full text-left bg-white rounded-[14px] px-4 py-3 shadow-[0_1px_4px_rgba(34,197,94,0.08)] hover:bg-snap-50 transition-colors"
                 >
-                  {showPwEdit[u.id] ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                  )}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-snap-800 truncate">{exp.merchant || exp.category}</p>
+                      <div className="flex gap-2 mt-0.5 flex-wrap">
+                        <span className="text-[10px] text-skin-secondary">{exp.date}</span>
+                        <span className="text-[10px] text-skin-secondary capitalize">{exp.category}</span>
+                        {exp.is_shared ? (
+                          <span className="text-[10px] text-snap-400">
+                            Shared · {exp.shared_with.length ? exp.shared_with.map(id => userById[id]?.username ?? id).join(", ") : "everyone"}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-semibold text-snap-600">{exp.attributed_username}</span>
+                        )}
+                      </div>
+                      {exp.note && <p className="text-xs text-skin-secondary mt-0.5 italic truncate">{exp.note}</p>}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-sm font-mono font-bold text-snap-800">{share.toFixed(2)}</p>
+                      {exp.is_shared && (
+                        <p className="text-[10px] text-skin-secondary">÷{parts} of {exp.total.toFixed(2)}</p>
+                      )}
+                    </div>
+                  </div>
                 </button>
+              );
+            })}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+function AllExpensesPanel({
+  onClose,
+  cards,
+  currentUser,
+  allUsers,
+}: {
+  onClose: () => void;
+  cards: string[];
+  currentUser: User;
+  allUsers: User[];
+}) {
+  const [activePersonal, setActivePersonal] = useState<Set<number>>(new Set());
+  const [showShared, setShowShared] = useState(true);
+  const [sharedFilter, setSharedFilter] = useState<Set<number>>(new Set());
+  const [expenses, setExpenses] = useState<Expense[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+
+  const userById = Object.fromEntries(allUsers.map(u => [u.id, u]));
+  const visibleUsers = currentUser.is_superuser ? allUsers : [currentUser];
+
+  const effectiveAmount = (exp: Expense): number => {
+    if (!exp.is_shared) return exp.total;
+    const parts = exp.shared_with.length || allUsers.length || 1;
+    return exp.total / parts;
+  };
+
+  const togglePersonal = (uid: number) => setActivePersonal(prev => {
+    const next = new Set(prev);
+    next.has(uid) ? next.delete(uid) : next.add(uid);
+    return next;
+  });
+
+  const toggleSharedFilter = (uid: number) => setSharedFilter(prev => {
+    const next = new Set(prev);
+    next.has(uid) ? next.delete(uid) : next.add(uid);
+    return next;
+  });
+
+  useEffect(() => {
+    const calls: Promise<Expense[]>[] = [];
+    activePersonal.forEach(uid => calls.push(api.listPersonalFor(uid)));
+    if (showShared) calls.push(api.listAllShared());
+    if (calls.length === 0) { setExpenses([]); return; }
+
+    setLoading(true);
+    Promise.all(calls)
+      .then(results => {
+        const seen = new Set<number>();
+        const merged: Expense[] = [];
+        for (const list of results)
+          for (const e of list)
+            if (!seen.has(e.id)) { seen.add(e.id); merged.push(e); }
+
+        const filtered = merged.filter(e => {
+          if (!e.is_shared) return true;
+          if (sharedFilter.size === 0) return true;
+          const sw = e.shared_with;
+          if (!sw || sw.length === 0) return true;
+          return [...sharedFilter].some(uid => sw.includes(uid));
+        });
+        filtered.sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+        setExpenses(filtered);
+      })
+      .catch(() => setExpenses([]))
+      .finally(() => setLoading(false));
+  }, [activePersonal, showShared, sharedFilter]);
+
+  const refresh = () => setActivePersonal(prev => new Set(prev));
+
+  const handleEditSave = async (data: ExpenseCreate) => {
+    if (!editingExpense) return;
+    await api.update(editingExpense.id, data);
+    setEditingExpense(null);
+    refresh();
+  };
+
+  const handleDelete = async (id: number, deleteArchive = false) => {
+    await api.delete(id, deleteArchive);
+    setEditingExpense(null);
+    refresh();
+  };
+
+  // Group expenses by month for display
+  const grouped = (expenses ?? []).reduce<Record<string, Expense[]>>((acc, exp) => {
+    const key = exp.date.substring(0, 7);
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(exp);
+    return acc;
+  }, {});
+  const sortedMonths = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+  const formatMonthHeader = (ym: string) => {
+    const [year, month] = ym.split("-");
+    return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-snap-50 overflow-y-auto">
+      <Modal open={!!editingExpense} onClose={() => setEditingExpense(null)} title="Edit Expense">
+        {editingExpense && (
+          <EditExpenseForm
+            cards={cards}
+            expense={editingExpense}
+            onSubmit={handleEditSave}
+            onCancel={() => setEditingExpense(null)}
+            onDelete={(del) => handleDelete(editingExpense.id, del)}
+            currentUser={currentUser}
+            allUsers={allUsers}
+          />
+        )}
+      </Modal>
+
+      <div className="sticky top-0 z-10 bg-snap-50/90 backdrop-blur-sm border-b border-snap-100">
+        <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
+          <button type="button" onClick={onClose} className="text-sm font-semibold text-snap-600">← Back</button>
+          <h1 className="text-base font-bold text-snap-800 flex-1">All Expenses</h1>
+          {expenses && <span className="text-xs text-skin-secondary">{expenses.length} expense{expenses.length !== 1 ? "s" : ""}</span>}
+        </div>
+
+
+        {/* User / type filters */}
+        <div className="max-w-lg mx-auto px-4 pb-3 space-y-2">
+          <div className="flex flex-wrap gap-1.5">
+            {visibleUsers.map(u => (
+              <button
+                key={u.id}
+                type="button"
+                onClick={() => togglePersonal(u.id)}
+                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                  activePersonal.has(u.id) ? "bg-snap-500 text-white border-snap-500" : "bg-white text-snap-600 border-snap-200"
+                }`}
+              >
+                {u.id === currentUser.id ? "Mine" : u.username}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setShowShared(v => !v)}
+              className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                showShared ? "bg-snap-500 text-white border-snap-500" : "bg-white text-snap-600 border-snap-200"
+              }`}
+            >
+              Shared
+            </button>
+          </div>
+
+          {showShared && allUsers.length > 0 && (
+            <div>
+              <p className="text-[10px] font-bold text-skin-secondary uppercase tracking-wide mb-1">Shared among</p>
+              <div className="flex flex-wrap gap-1.5">
+                {allUsers.map(u => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => toggleSharedFilter(u.id)}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                      sharedFilter.has(u.id) ? "bg-snap-300 text-snap-900 border-snap-300" : "bg-white text-snap-400 border-snap-200"
+                    }`}
+                  >
+                    {u.username}
+                  </button>
+                ))}
               </div>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void setPassword(u.id)}
-                className="px-2 py-1 text-xs font-semibold rounded-lg bg-snap-100 text-snap-700"
-              >
-                Set
-              </button>
+              <p className="text-[10px] text-skin-secondary mt-1">
+                {sharedFilter.size === 0 ? "All shared expenses" : "Filtered by selected users"}
+              </p>
             </div>
-            {u.id !== currentId && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void remove(u.id)}
-                className="text-xs text-red-600 font-semibold"
-              >
-                Delete user
-              </button>
-            )}
+          )}
+        </div>
+      </div>
+
+      <div className="max-w-lg mx-auto p-4 space-y-1">
+        {loading && <p className="text-center text-sm text-skin-secondary py-8">Loading…</p>}
+        {!loading && expenses && expenses.length === 0 && (
+          <p className="text-center text-sm text-skin-secondary py-8">No expenses found.</p>
+        )}
+        {!loading && expenses && expenses.length > 0 && (
+          <div className="bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(34,197,94,0.08)] mb-2">
+            <p className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide mb-1">Your share</p>
+            <p className="text-2xl font-bold text-snap-800">
+              {expenses.reduce((sum, e) => sum + effectiveAmount(e), 0).toFixed(2)} EUR
+            </p>
+            <p className="text-xs text-skin-secondary mt-0.5">
+              {expenses.length} expense{expenses.length !== 1 ? "s" : ""}
+              {expenses.some(e => e.is_shared) && (
+                <> · full total {expenses.reduce((sum, e) => sum + e.total, 0).toFixed(2)} EUR</>
+              )}
+            </p>
+          </div>
+        )}
+        {!loading && expenses && expenses.length > 0 && sortedMonths.map(ym => (
+          <div key={ym}>
+            <div className="sticky top-[calc(var(--header-h,120px))] bg-snap-50/95 backdrop-blur-sm py-2">
+              <p className="text-[11px] font-bold text-snap-600 uppercase tracking-wide">{formatMonthHeader(ym)}</p>
+            </div>
+            <div className="space-y-1.5">
+              {grouped[ym].map(exp => (
+                <button
+                  key={exp.id}
+                  type="button"
+                  onClick={() => setEditingExpense(exp)}
+                  className="w-full text-left bg-white rounded-[14px] px-4 py-3 shadow-[0_1px_4px_rgba(34,197,94,0.08)] hover:bg-snap-50 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-snap-800 truncate">{exp.merchant || exp.category}</p>
+                      <div className="flex gap-2 mt-0.5 flex-wrap">
+                        <span className="text-[10px] text-skin-secondary">{exp.date}</span>
+                        <span className="text-[10px] text-skin-secondary capitalize">{exp.category}</span>
+                        {exp.is_shared ? (
+                          <span className="text-[10px] text-snap-400">
+                            Shared · {exp.shared_with.length ? exp.shared_with.map(id => userById[id]?.username ?? id).join(", ") : "everyone"}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-semibold text-snap-600">{exp.attributed_username}</span>
+                        )}
+                      </div>
+                      {exp.note && <p className="text-xs text-skin-secondary mt-0.5 italic truncate">{exp.note}</p>}
+                    </div>
+                    <span className="text-sm font-mono font-bold text-snap-800 shrink-0">{exp.total.toFixed(2)}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         ))}
       </div>
-      <button type="button" onClick={onClose} className="w-full py-2 text-sm text-skin-secondary">
-        Close
-      </button>
     </div>
   );
 }
@@ -1560,7 +2207,8 @@ function AnalyticsPanel({ onClose, cards, currentUser, allUsers }: {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(false);
   const [itemFilter, setItemFilter] = useState("");
-  const [drillCategory, setDrillCategory] = useState<string | null>(null);
+  const [drillMode, setDrillMode] = useState<"category" | "merchant" | "month" | null>(null);
+  const [drillKey, setDrillKey] = useState<string | null>(null);
   const [drillExpenses, setDrillExpenses] = useState<Expense[] | null>(null);
   const [drillLoading, setDrillLoading] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -1575,25 +2223,35 @@ function AnalyticsPanel({ onClose, cards, currentUser, allUsers }: {
       .finally(() => setLoading(false));
   }, [preset]);
 
-  const openDrill = (category: string) => {
+  const fetchDrill = (mode: "category" | "merchant" | "month", key: string) => {
     const { from, to } = getAnalyticsRange(preset);
-    setDrillCategory(category);
-    setDrillExpenses(null);
     setDrillLoading(true);
-    api.listByCategory(category, from, to)
+    setDrillExpenses(null);
+    const promise =
+      mode === "category" ? api.listByCategory(key, from, to) :
+      mode === "merchant" ? api.listByMerchant(key, from, to) :
+      api.listByMonth(key, from, to);
+    promise
       .then(setDrillExpenses)
       .catch(() => {})
       .finally(() => setDrillLoading(false));
   };
 
+  const openDrill = (mode: "category" | "merchant" | "month", key: string) => {
+    setDrillMode(mode);
+    setDrillKey(key);
+    fetchDrill(mode, key);
+  };
+
+  const closeDrill = () => {
+    setDrillMode(null);
+    setDrillKey(null);
+    setDrillExpenses(null);
+  };
+
   const refreshDrill = () => {
-    if (!drillCategory) return;
-    const { from, to } = getAnalyticsRange(preset);
-    setDrillLoading(true);
-    api.listByCategory(drillCategory, from, to)
-      .then(setDrillExpenses)
-      .catch(() => {})
-      .finally(() => setDrillLoading(false));
+    if (!drillMode || !drillKey) return;
+    fetchDrill(drillMode, drillKey);
   };
 
   const handleEditSave = async (data: ExpenseCreate) => {
@@ -1619,7 +2277,7 @@ function AnalyticsPanel({ onClose, cards, currentUser, allUsers }: {
   return (
     <div className="fixed inset-0 z-50 bg-snap-50 overflow-y-auto">
       <div className="sticky top-0 z-10 bg-snap-50/90 backdrop-blur-sm border-b border-snap-100">
-        <div className="max-w-md mx-auto px-4 py-3 flex items-center gap-3">
+        <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
           <button
             type="button"
             onClick={onClose}
@@ -1629,7 +2287,7 @@ function AnalyticsPanel({ onClose, cards, currentUser, allUsers }: {
           </button>
           <h1 className="text-base font-bold text-snap-800 flex-1">Analytics</h1>
         </div>
-        <div className="max-w-md mx-auto px-4 pb-2 flex gap-2">
+        <div className="max-w-lg mx-auto px-4 pb-2 flex gap-2">
           {ANALYTICS_PRESETS.map((p) => (
             <button
               key={p.key}
@@ -1647,7 +2305,7 @@ function AnalyticsPanel({ onClose, cards, currentUser, allUsers }: {
         </div>
       </div>
 
-      <div className="max-w-md mx-auto p-4 space-y-4">
+      <div className="max-w-lg mx-auto p-4 space-y-4">
         {loading && (
           <p className="text-center text-sm text-skin-secondary py-8">Loading…</p>
         )}
@@ -1676,7 +2334,7 @@ function AnalyticsPanel({ onClose, cards, currentUser, allUsers }: {
                     <button
                       key={row.category}
                       type="button"
-                      onClick={() => openDrill(row.category)}
+                      onClick={() => openDrill("category", row.category)}
                       className="w-full flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-snap-50 transition-colors"
                     >
                       <span className="w-28 text-xs text-skin-primary truncate shrink-0 text-left">{row.category} ({row.count})</span>
@@ -1701,8 +2359,13 @@ function AnalyticsPanel({ onClose, cards, currentUser, allUsers }: {
                 <p className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide mb-3">Top merchants</p>
                 <div className="space-y-2">
                   {data.by_merchant.map((row) => (
-                    <div key={row.merchant} className="flex items-center gap-2">
-                      <span className="flex-1 text-xs text-skin-primary truncate">{row.merchant}</span>
+                    <button
+                      key={row.merchant}
+                      type="button"
+                      onClick={() => openDrill("merchant", row.merchant)}
+                      className="w-full flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-snap-50 transition-colors"
+                    >
+                      <span className="flex-1 text-xs text-skin-primary truncate text-left">{row.merchant} ({row.count})</span>
                       <div className="w-20 bg-snap-100 rounded-full h-1.5 shrink-0">
                         <div
                           className="bg-snap-300 h-1.5 rounded-full"
@@ -1712,7 +2375,7 @@ function AnalyticsPanel({ onClose, cards, currentUser, allUsers }: {
                       <span className="text-xs font-mono text-snap-800 w-16 text-right shrink-0">
                         {row.total.toFixed(2)}
                       </span>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -1724,10 +2387,15 @@ function AnalyticsPanel({ onClose, cards, currentUser, allUsers }: {
                 <p className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide mb-3">By month</p>
                 <div className="space-y-1.5">
                   {data.by_month.map((row) => (
-                    <div key={row.month} className="flex justify-between text-xs">
-                      <span className="text-skin-secondary">{row.month}</span>
+                    <button
+                      key={row.month}
+                      type="button"
+                      onClick={() => openDrill("month", row.month)}
+                      className="w-full flex justify-between text-xs px-2 py-1 rounded-lg hover:bg-snap-50 transition-colors"
+                    >
+                      <span className="text-skin-secondary">{row.month} ({row.count})</span>
                       <span className="font-mono text-snap-800">{row.total.toFixed(2)}</span>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -1777,8 +2445,8 @@ function AnalyticsPanel({ onClose, cards, currentUser, allUsers }: {
         )}
       </div>
 
-      {/* Category drill-down overlay */}
-      {drillCategory && (
+      {/* Drill-down overlay (category / merchant / month) */}
+      {drillMode && drillKey && (
         <div className="fixed inset-0 z-60 bg-snap-50 overflow-y-auto">
           {/* Edit expense modal (from drill-down) */}
           <Modal open={!!editingExpense} onClose={() => setEditingExpense(null)} title="Edit Expense">
@@ -1796,15 +2464,15 @@ function AnalyticsPanel({ onClose, cards, currentUser, allUsers }: {
           </Modal>
 
           <div className="sticky top-0 z-10 bg-snap-50/90 backdrop-blur-sm border-b border-snap-100">
-            <div className="max-w-md mx-auto px-4 py-3 flex items-center gap-3">
+            <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => { setDrillCategory(null); setDrillExpenses(null); }}
+                onClick={closeDrill}
                 className="text-sm font-semibold text-snap-600"
               >
                 ← Back
               </button>
-              <h2 className="text-base font-bold text-snap-800 flex-1">{drillCategory}</h2>
+              <h2 className="text-base font-bold text-snap-800 flex-1">{drillKey}</h2>
               {drillExpenses && (
                 <span className="text-xs text-skin-secondary">
                   {drillExpenses.length} {drillExpenses.length === 1 ? "expense" : "expenses"}
@@ -1812,7 +2480,7 @@ function AnalyticsPanel({ onClose, cards, currentUser, allUsers }: {
               )}
             </div>
           </div>
-          <div className="max-w-md mx-auto p-4 space-y-2">
+          <div className="max-w-lg mx-auto p-4 space-y-2">
             {drillLoading && (
               <p className="text-center text-sm text-skin-secondary py-8">Loading…</p>
             )}

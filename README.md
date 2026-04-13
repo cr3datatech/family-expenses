@@ -1,17 +1,20 @@
 # Family Expenses
 
-AI-powered expense tracker with receipt scanning. Snap or upload a photo of your receipt and the AI extracts the merchant, items, total, and category automatically. Also supports manual entry, editing, history, monthly summaries, and full-text search.
+AI-powered expense tracker with receipt scanning. Snap or upload a photo of your receipt and the AI extracts the merchant, items, total, and category automatically. Also supports manual entry, editing, analytics, personal expense tracking, and full-text search.
 
 ## Features
 
 - **Receipt scanning** — On mobile: two buttons — **Scan** (opens camera) and **Upload** (opens photo library). On desktop: a single **Upload receipt** button. AI extracts line items, merchant, total, and category. Finnish/European receipts (DD.MM.YYYY dates, `kpl` quantity sub-lines, `ale`/`alennus` discounts) are handled correctly.
 - **Receipt archive** — The image is saved to `data/receipts/archive/` with a descriptive filename when the expense is confirmed. Cancelled scans are not archived.
 - **Manual entry** — Full form matching the scan review: date, merchant, category (dropdown), line items (name × qty × unit price), total, card, note.
+- **Shared & personal expenses** — Expenses are shared by default (split equally among sharing users). Any expense can instead be attributed to a specific user as a personal expense. When viewing shared expenses, each row shows the per-person share alongside the full total.
+- **Date presets** — The front page expense list and summary can be filtered by Month / 3 months / Year / All time.
 - **Search** — Full-text search across merchant, category, date, card, note, and line items. Results open directly in the edit modal.
-- **Monthly summary** — Spending breakdown by category for the current month.
-- **History** — Browse all past expenses grouped by month; click any row to edit.
-- **Edit & delete** — Edit any field (including date); delete with optional archive image removal. Delete requires confirmation and (if a receipt image exists) asks whether to remove the image too. Superuser only.
-- **Charts / Analytics** — Date-range overview (month / 3 months / year / all time) with spend by category (bar chart), top merchants, by-month table, filterable category list with multi-select and combined totals, and a searchable item drill-down with live total.
+- **Personal page** — Per-user view with date presets (month / 3 months / year / all time). Filter by personal expenses (your own or other users') and shared expenses; the "Shared among" sub-filter shows only expenses shared among all selected users. Displays a "Your share" total that divides shared expense totals by the number of sharing users.
+- **All Expenses** — Full expense history across all users, grouped by month, with the same user/shared filters and "Your share" summary. Defaults to all time.
+- **Edit & delete** — Edit any field (including date and attribution); delete with optional archive image removal. Delete requires confirmation and (if a receipt image exists) asks whether to remove the image too. Superuser only.
+- **Charts / Analytics** — Date-range overview (month / 3 months / year / all time) with spend by category (bar chart), top merchants, by-month table, filterable category list with multi-select and combined totals, and a searchable item drill-down. Categories, merchants, and months are clickable and open a drill-down list of matching expenses (each editable).
+- **User management** — Superusers can create, edit (username, password, email, superuser flag), and delete users from a dedicated panel.
 - **Configurable** — Set your own payment methods and currency via `.env`.
 
 ## Tech Stack
@@ -311,7 +314,7 @@ Expense and user routes expect a **session cookie** from `POST /api/auth/login` 
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/expenses/` | All expenses (optional `year`+`month`, `card` filters) |
+| GET | `/api/expenses/` | All expenses; optional filters: `year`+`month`, `date_from`, `date_to`, `card`, `category`, `merchant`, `is_shared`, `attributed_to`, `shared_with_user` |
 | GET | `/api/expenses/summary/{year}/{month}` | Monthly totals by category |
 | GET | `/api/expenses/analytics` | Aggregated analytics: by category/card/merchant/month + item drill-down (`date_from`, `date_to` optional) |
 | GET | `/api/expenses/search?q=` | Full-text search across all fields |

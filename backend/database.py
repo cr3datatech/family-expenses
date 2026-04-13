@@ -1,5 +1,6 @@
 """SQLite database for Snap Expenses."""
 
+import json
 import os
 import sqlite3
 from pathlib import Path
@@ -63,6 +64,10 @@ def _migrate(conn: sqlite3.Connection) -> None:
     cols = [r[1] for r in conn.execute("PRAGMA table_info(expenses)").fetchall()]
     if "user_id" not in cols:
         conn.execute("ALTER TABLE expenses ADD COLUMN user_id INTEGER REFERENCES users(id)")
+    if "is_shared" not in cols:
+        conn.execute("ALTER TABLE expenses ADD COLUMN is_shared INTEGER NOT NULL DEFAULT 1")
+    if "shared_with" not in cols:
+        conn.execute("ALTER TABLE expenses ADD COLUMN shared_with TEXT")
     ucols = [r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()]
     if "email" not in ucols:
         conn.execute("ALTER TABLE users ADD COLUMN email TEXT")
@@ -106,6 +111,22 @@ def _backfill_expense_user_ids(conn: sqlite3.Connection) -> None:
     conn.execute("UPDATE expenses SET user_id = ? WHERE user_id IS NULL", (uid,))
 
 
+def _backfill_shared_with(conn: sqlite3.Connection) -> None:
+    """Set shared_with for existing shared expenses to Christa + Craig (or all users)."""
+    rows = conn.execute(
+        "SELECT id FROM users WHERE LOWER(username) IN ('christa', 'craig') ORDER BY id"
+    ).fetchall()
+    if not rows:
+        rows = conn.execute("SELECT id FROM users ORDER BY id").fetchall()
+    if not rows:
+        return
+    user_ids = [r[0] for r in rows]
+    conn.execute(
+        "UPDATE expenses SET shared_with = ? WHERE is_shared = 1 AND shared_with IS NULL",
+        (json.dumps(user_ids),),
+    )
+
+
 def init_db(db_path: str | Path | None = None) -> None:
     """Initialize the database schema and run migrations."""
     conn = get_connection(db_path)
@@ -114,6 +135,7 @@ def init_db(db_path: str | Path | None = None) -> None:
         _bootstrap_admin(conn)
         conn.commit()
         _backfill_expense_user_ids(conn)
+        _backfill_shared_with(conn)
         conn.commit()
     finally:
         conn.close()
