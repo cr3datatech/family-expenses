@@ -1522,6 +1522,7 @@ function AnalyticsPanel({ onClose }: { onClose: () => void }) {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(false);
   const [itemFilter, setItemFilter] = useState("");
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const { from, to } = getAnalyticsRange(preset);
@@ -1649,10 +1650,69 @@ function AnalyticsPanel({ onClose }: { onClose: () => void }) {
               </div>
             )}
 
+            {/* Categories */}
+            {data.by_category.length > 0 && (() => {
+              const selTotal = data.by_category
+                .filter((r) => selectedCategories.has(r.category))
+                .reduce((s, r) => s + r.total, 0);
+              const selCount = data.by_category
+                .filter((r) => selectedCategories.has(r.category))
+                .reduce((s, r) => s + r.count, 0);
+              return (
+                <div className="bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(34,197,94,0.08)]">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide">Categories</p>
+                    {selectedCategories.size > 0 && (
+                      <button type="button" onClick={() => setSelectedCategories(new Set())} className="text-[11px] text-skin-secondary hover:text-snap-700">
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  {selectedCategories.size > 0 && (
+                    <div className="mb-3 px-3 py-2 bg-snap-100 rounded-xl text-xs flex justify-between">
+                      <span className="text-snap-800 font-semibold">{Array.from(selectedCategories).join(", ")}</span>
+                      <span className="font-mono text-snap-800 shrink-0 ml-2">{selTotal.toFixed(2)} · {selCount} exp</span>
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    {data.by_category.map((row) => {
+                      const selected = selectedCategories.has(row.category);
+                      return (
+                        <button
+                          key={row.category}
+                          type="button"
+                          onClick={() => setSelectedCategories((prev) => {
+                            const next = new Set(prev);
+                            selected ? next.delete(row.category) : next.add(row.category);
+                            return next;
+                          })}
+                          className={`w-full flex items-center gap-2 text-xs px-2 py-1.5 rounded-lg transition-colors ${
+                            selected ? "bg-snap-100 text-snap-800" : "hover:bg-snap-50 text-skin-primary"
+                          }`}
+                        >
+                          <span className={`w-3 h-3 rounded border shrink-0 flex items-center justify-center ${selected ? "bg-snap-500 border-snap-500" : "border-snap-300"}`}>
+                            {selected && <span className="text-white text-[8px] leading-none font-bold">✓</span>}
+                          </span>
+                          <span className="flex-1 text-left">{row.category}</span>
+                          <span className={`shrink-0 ${selected ? "text-snap-600" : "text-skin-secondary"}`}>{row.count} exp</span>
+                          <span className={`font-mono w-16 text-right shrink-0 ${selected ? "text-snap-800 font-semibold" : "text-snap-800"}`}>{row.total.toFixed(2)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Top Items */}
             {data.top_items.length > 0 && (
               <div className="bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(34,197,94,0.08)]">
-                <p className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide mb-2">Items</p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide">Items</p>
+                  <span className="text-sm font-bold text-snap-800">
+                    {filteredItems.reduce((s, i) => s + i.total_amount, 0).toFixed(2)}
+                  </span>
+                </div>
                 <input
                   type="search"
                   value={itemFilter}
