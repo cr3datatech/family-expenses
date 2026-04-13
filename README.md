@@ -1,4 +1,4 @@
-# Receipts
+# Family Expenses
 
 AI-powered expense tracker with receipt scanning. Snap or upload a photo of your receipt and the AI extracts the merchant, items, total, and category automatically. Also supports manual entry, editing, history, monthly summaries, and full-text search.
 
