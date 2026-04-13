@@ -499,7 +499,7 @@ function ExpensesPage({
 
   return (
     <>
-      {showAnalytics && <AnalyticsPanel onClose={() => setShowAnalytics(false)} />}
+      {showAnalytics && <AnalyticsPanel onClose={() => setShowAnalytics(false)} cards={cards} currentUser={user} allUsers={allUsers} />}
       <div className="p-4 space-y-3">
       <div className="sticky top-0 z-40 bg-snap-50/90 backdrop-blur-sm py-3 -mx-4 px-4 -mt-4 mb-2 flex items-center justify-between gap-2">
         <h1 className="text-xl font-bold text-snap-800">Receipts</h1>
@@ -1262,6 +1262,8 @@ function UserAdminPanel({
   const [busy, setBusy] = useState(false);
   const [pwEdit, setPwEdit] = useState<Record<number, string>>({});
   const [emailEdit, setEmailEdit] = useState<Record<number, string>>({});
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showPwEdit, setShowPwEdit] = useState<Record<number, boolean>>({});
 
   const createUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1335,16 +1337,32 @@ function UserAdminPanel({
         <input
           className="form-input w-full"
           placeholder="Username"
+          autoComplete="off"
           value={newUsername}
           onChange={(e) => setNewUsername(e.target.value)}
         />
-        <input
-          className="form-input w-full"
-          type="password"
-          placeholder="Password"
-          value={newPassword}
-          onChange={(e) => setNewPassword(e.target.value)}
-        />
+        <div className="relative">
+          <input
+            className="form-input w-full pr-8"
+            type={showNewPw ? "text" : "password"}
+            placeholder="Password"
+            autoComplete="new-password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+          />
+          <button
+            type="button"
+            onClick={() => setShowNewPw((v) => !v)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-snap-400 hover:text-snap-600"
+            tabIndex={-1}
+          >
+            {showNewPw ? (
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            )}
+          </button>
+        </div>
         <input
           className="form-input w-full"
           type="email"
@@ -1396,13 +1414,28 @@ function UserAdminPanel({
               </button>
             </div>
             <div className="flex gap-1">
-              <input
-                className="form-input flex-1 text-sm"
-                type="password"
-                placeholder="New password"
-                value={pwEdit[u.id] ?? ""}
-                onChange={(e) => setPwEdit((p) => ({ ...p, [u.id]: e.target.value }))}
-              />
+              <div className="relative flex-1">
+                <input
+                  className="form-input w-full text-sm pr-7"
+                  type={showPwEdit[u.id] ? "text" : "password"}
+                  placeholder="New password"
+                  autoComplete="new-password"
+                  value={pwEdit[u.id] ?? ""}
+                  onChange={(e) => setPwEdit((p) => ({ ...p, [u.id]: e.target.value }))}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPwEdit((p) => ({ ...p, [u.id]: !p[u.id] }))}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-snap-400 hover:text-snap-600"
+                  tabIndex={-1}
+                >
+                  {showPwEdit[u.id] ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  )}
+                </button>
+              </div>
               <button
                 type="button"
                 disabled={busy}
@@ -1517,12 +1550,20 @@ function getAnalyticsRange(preset: string): { from?: string; to?: string } {
   return {};
 }
 
-function AnalyticsPanel({ onClose }: { onClose: () => void }) {
+function AnalyticsPanel({ onClose, cards, currentUser, allUsers }: {
+  onClose: () => void;
+  cards: string[];
+  currentUser: User;
+  allUsers: User[];
+}) {
   const [preset, setPreset] = useState("month");
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(false);
   const [itemFilter, setItemFilter] = useState("");
-  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
+  const [drillCategory, setDrillCategory] = useState<string | null>(null);
+  const [drillExpenses, setDrillExpenses] = useState<Expense[] | null>(null);
+  const [drillLoading, setDrillLoading] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
   useEffect(() => {
     const { from, to } = getAnalyticsRange(preset);
@@ -1533,6 +1574,40 @@ function AnalyticsPanel({ onClose }: { onClose: () => void }) {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [preset]);
+
+  const openDrill = (category: string) => {
+    const { from, to } = getAnalyticsRange(preset);
+    setDrillCategory(category);
+    setDrillExpenses(null);
+    setDrillLoading(true);
+    api.listByCategory(category, from, to)
+      .then(setDrillExpenses)
+      .catch(() => {})
+      .finally(() => setDrillLoading(false));
+  };
+
+  const refreshDrill = () => {
+    if (!drillCategory) return;
+    const { from, to } = getAnalyticsRange(preset);
+    setDrillLoading(true);
+    api.listByCategory(drillCategory, from, to)
+      .then(setDrillExpenses)
+      .catch(() => {})
+      .finally(() => setDrillLoading(false));
+  };
+
+  const handleEditSave = async (data: ExpenseCreate) => {
+    if (!editingExpense) return;
+    await api.update(editingExpense.id, data);
+    setEditingExpense(null);
+    refreshDrill();
+  };
+
+  const handleDelete = async (id: number, deleteArchive = false) => {
+    await api.delete(id, deleteArchive);
+    setEditingExpense(null);
+    refreshDrill();
+  };
 
   const filteredItems = (data?.top_items ?? []).filter(
     (item) => !itemFilter.trim() || item.name.toLowerCase().includes(itemFilter.toLowerCase())
@@ -1592,11 +1667,19 @@ function AnalyticsPanel({ onClose }: { onClose: () => void }) {
             {/* By Category */}
             {data.by_category.length > 0 && (
               <div className="bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(34,197,94,0.08)]">
-                <p className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide mb-3">By category</p>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide">By category</p>
+                  <span className="text-xs font-mono text-snap-800 font-semibold">{data.total.toFixed(2)}</span>
+                </div>
                 <div className="space-y-2">
                   {data.by_category.map((row) => (
-                    <div key={row.category} className="flex items-center gap-2">
-                      <span className="w-24 text-xs text-skin-primary truncate shrink-0">{row.category}</span>
+                    <button
+                      key={row.category}
+                      type="button"
+                      onClick={() => openDrill(row.category)}
+                      className="w-full flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-snap-50 transition-colors"
+                    >
+                      <span className="w-28 text-xs text-skin-primary truncate shrink-0 text-left">{row.category} ({row.count})</span>
                       <div className="flex-1 bg-snap-100 rounded-full h-1.5">
                         <div
                           className="bg-snap-500 h-1.5 rounded-full"
@@ -1606,7 +1689,7 @@ function AnalyticsPanel({ onClose }: { onClose: () => void }) {
                       <span className="text-xs font-mono text-snap-800 w-16 text-right shrink-0">
                         {row.total.toFixed(2)}
                       </span>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -1650,59 +1733,6 @@ function AnalyticsPanel({ onClose }: { onClose: () => void }) {
               </div>
             )}
 
-            {/* Categories */}
-            {data.by_category.length > 0 && (() => {
-              const selTotal = data.by_category
-                .filter((r) => selectedCategories.has(r.category))
-                .reduce((s, r) => s + r.total, 0);
-              const selCount = data.by_category
-                .filter((r) => selectedCategories.has(r.category))
-                .reduce((s, r) => s + r.count, 0);
-              return (
-                <div className="bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(34,197,94,0.08)]">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide">Categories</p>
-                    {selectedCategories.size > 0 && (
-                      <button type="button" onClick={() => setSelectedCategories(new Set())} className="text-[11px] text-skin-secondary hover:text-snap-700">
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                  {selectedCategories.size > 0 && (
-                    <div className="mb-3 px-3 py-2 bg-snap-100 rounded-xl text-xs flex justify-between">
-                      <span className="text-snap-800 font-semibold">{Array.from(selectedCategories).join(", ")}</span>
-                      <span className="font-mono text-snap-800 shrink-0 ml-2">{selTotal.toFixed(2)} · {selCount} exp</span>
-                    </div>
-                  )}
-                  <div className="space-y-1.5">
-                    {data.by_category.map((row) => {
-                      const selected = selectedCategories.has(row.category);
-                      return (
-                        <button
-                          key={row.category}
-                          type="button"
-                          onClick={() => setSelectedCategories((prev) => {
-                            const next = new Set(prev);
-                            selected ? next.delete(row.category) : next.add(row.category);
-                            return next;
-                          })}
-                          className={`w-full flex items-center gap-2 text-xs px-2 py-1.5 rounded-lg transition-colors ${
-                            selected ? "bg-snap-100 text-snap-800" : "hover:bg-snap-50 text-skin-primary"
-                          }`}
-                        >
-                          <span className={`w-3 h-3 rounded border shrink-0 flex items-center justify-center ${selected ? "bg-snap-500 border-snap-500" : "border-snap-300"}`}>
-                            {selected && <span className="text-white text-[8px] leading-none font-bold">✓</span>}
-                          </span>
-                          <span className="flex-1 text-left">{row.category}</span>
-                          <span className={`shrink-0 ${selected ? "text-snap-600" : "text-skin-secondary"}`}>{row.count} exp</span>
-                          <span className={`font-mono w-16 text-right shrink-0 ${selected ? "text-snap-800 font-semibold" : "text-snap-800"}`}>{row.total.toFixed(2)}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })()}
 
             {/* Top Items */}
             {data.top_items.length > 0 && (
@@ -1746,6 +1776,79 @@ function AnalyticsPanel({ onClose }: { onClose: () => void }) {
           </>
         )}
       </div>
+
+      {/* Category drill-down overlay */}
+      {drillCategory && (
+        <div className="fixed inset-0 z-60 bg-snap-50 overflow-y-auto">
+          {/* Edit expense modal (from drill-down) */}
+          <Modal open={!!editingExpense} onClose={() => setEditingExpense(null)} title="Edit Expense">
+            {editingExpense && (
+              <EditExpenseForm
+                cards={cards}
+                expense={editingExpense}
+                onSubmit={handleEditSave}
+                onCancel={() => setEditingExpense(null)}
+                onDelete={(deleteArchive) => handleDelete(editingExpense.id, deleteArchive)}
+                currentUser={currentUser}
+                allUsers={allUsers}
+              />
+            )}
+          </Modal>
+
+          <div className="sticky top-0 z-10 bg-snap-50/90 backdrop-blur-sm border-b border-snap-100">
+            <div className="max-w-md mx-auto px-4 py-3 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => { setDrillCategory(null); setDrillExpenses(null); }}
+                className="text-sm font-semibold text-snap-600"
+              >
+                ← Back
+              </button>
+              <h2 className="text-base font-bold text-snap-800 flex-1">{drillCategory}</h2>
+              {drillExpenses && (
+                <span className="text-xs text-skin-secondary">
+                  {drillExpenses.length} {drillExpenses.length === 1 ? "expense" : "expenses"}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="max-w-md mx-auto p-4 space-y-2">
+            {drillLoading && (
+              <p className="text-center text-sm text-skin-secondary py-8">Loading…</p>
+            )}
+            {!drillLoading && drillExpenses && drillExpenses.length === 0 && (
+              <p className="text-center text-sm text-skin-secondary py-8">No expenses found.</p>
+            )}
+            {!drillLoading && drillExpenses && drillExpenses.map((exp) => (
+              <button
+                key={exp.id}
+                type="button"
+                onClick={() => setEditingExpense(exp)}
+                className="w-full text-left bg-white rounded-[14px] px-4 py-3 shadow-[0_1px_4px_rgba(34,197,94,0.08)] hover:bg-snap-50 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-snap-800 truncate">{exp.merchant || exp.category}</p>
+                    <p className="text-xs text-skin-secondary mt-0.5">{exp.date}{exp.card ? ` · ${exp.card}` : ""}</p>
+                    {exp.note && <p className="text-xs text-skin-secondary mt-0.5 italic">{exp.note}</p>}
+                  </div>
+                  <span className="text-sm font-mono font-bold text-snap-800 shrink-0">{exp.total.toFixed(2)}</span>
+                </div>
+                {exp.items.length > 0 && (
+                  <div className="mt-2 space-y-0.5">
+                    {exp.items.map((item, i) => (
+                      <div key={i} className="flex justify-between text-xs text-skin-secondary">
+                        <span className="truncate">{item.qty && item.qty !== 1 ? `${item.qty}× ` : ""}{item.name}</span>
+                        <span className="font-mono shrink-0 ml-2">{item.amount.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

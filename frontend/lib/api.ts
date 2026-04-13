@@ -160,6 +160,13 @@ export const api = {
     return request<Expense[]>(`/expenses/?${params}`);
   },
 
+  listByCategory: (category: string, dateFrom?: string, dateTo?: string) => {
+    const params = new URLSearchParams({ category });
+    if (dateFrom) params.set("date_from", dateFrom);
+    if (dateTo) params.set("date_to", dateTo);
+    return request<Expense[]>(`/expenses/?${params}`);
+  },
+
   summary: (year: number, month: number) =>
     request<ExpenseSummary>(`/expenses/summary/${year}/${month}`),
 

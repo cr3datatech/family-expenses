@@ -84,6 +84,9 @@ def list_expenses(
     year: int | None = Query(None),
     month: int | None = Query(None),
     card: str | None = Query(None),
+    category: str | None = Query(None),
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
     db: sqlite3.Connection = Depends(get_db),
 ):
     query = f"{EXPENSE_SELECT} WHERE 1=1"
@@ -92,9 +95,18 @@ def list_expenses(
         prefix = f"{year}-{month:02d}"
         query += " AND e.date LIKE ?"
         params.append(f"{prefix}%")
+    if date_from is not None:
+        query += " AND e.date >= ?"
+        params.append(date_from)
+    if date_to is not None:
+        query += " AND e.date <= ?"
+        params.append(date_to)
     if card is not None:
         query += " AND e.card = ?"
         params.append(card)
+    if category is not None:
+        query += " AND e.category = ?"
+        params.append(category)
     query += " ORDER BY e.date DESC, e.id DESC"
     rows = db.execute(query, params).fetchall()
     return [row_to_expense(r) for r in rows]
@@ -280,8 +292,12 @@ def analytics(
     ).fetchall()
 
     by_merchant = db.execute(
-        f"SELECT merchant, SUM(total) AS total, COUNT(*) AS count FROM expenses e"
-        f" WHERE {where} AND merchant IS NOT NULL GROUP BY merchant ORDER BY total DESC LIMIT 15",
+        f"SELECT"
+        f"  UPPER(SUBSTR(LOWER(merchant), 1, 1)) || SUBSTR(LOWER(merchant), 2) AS merchant,"
+        f"  SUM(total) AS total, COUNT(*) AS count"
+        f" FROM expenses e"
+        f" WHERE {where} AND merchant IS NOT NULL"
+        f" GROUP BY LOWER(merchant) ORDER BY total DESC LIMIT 15",
         params,
     ).fetchall()
 

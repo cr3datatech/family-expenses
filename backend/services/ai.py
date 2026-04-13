@@ -68,7 +68,7 @@ def scan_receipt(image_data: bytes, media_type: str) -> dict:
     prompt = (
         "Extract data from this receipt. Return ONLY a JSON object with: "
         '"merchant" (string or null), "date" (string ISO date YYYY-MM-DD or null — note: Finnish/European receipts use DD.MM.YYYY, e.g. 12.4.2026 means April 12 = 2026-04-12), '
-        '"items" (array of {"name": string, "qty": integer, "unit_price": float, "amount": float}), '
+        '"items" (array of {"name": string, "qty": number, "unit_price": float, "amount": float}), '
         '"total" (float), '
         '"category" (string, Title Case - prefer these: Groceries, Eating Out, Transport, Entertainment, '
         "Health, Utilities, Shopping, Subscriptions, Travel, Coffee, Household, Rent, Car, "

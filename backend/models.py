@@ -6,7 +6,7 @@ from typing import Optional
 
 class ExpenseItem(BaseModel):
     name: str
-    qty: int = 1
+    qty: float = 1
     unit_price: float | None = None
     amount: float
 
