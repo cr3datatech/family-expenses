@@ -73,6 +73,7 @@ Edit `.env` and fill in at minimum:
 OPENAI_API_KEY=sk-...your-real-key...
 SNAP_BOOTSTRAP_ADMIN_USER=yourname
 SNAP_BOOTSTRAP_ADMIN_PASSWORD=your-strong-password
+SNAP_BOOTSTRAP_ADMIN_EMAIL=your@email.com
 ```
 
 **OpenAI API key:** [platform.openai.com](https://platform.openai.com) → API keys → create and paste into `.env`. Receipt scanning uses GPT-4o-mini (roughly $0.01–0.02 per scan). Restricted keys must have the `model.request` scope.
