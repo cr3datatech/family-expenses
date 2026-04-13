@@ -80,17 +80,22 @@ def _migrate(conn: sqlite3.Connection) -> None:
 
 
 def _bootstrap_admin(conn: sqlite3.Connection) -> None:
-    n = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-    if n > 0:
-        return
     user = os.getenv("SNAP_BOOTSTRAP_ADMIN_USER", "").strip()
     pw = os.getenv("SNAP_BOOTSTRAP_ADMIN_PASSWORD", "")
+    email = os.getenv("SNAP_BOOTSTRAP_ADMIN_EMAIL", "").strip() or None
     if not user or not pw:
         return
-    conn.execute(
-        "INSERT INTO users (username, password_hash, is_superuser) VALUES (?, ?, 1)",
-        (user, hash_password(pw)),
-    )
+    n = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    if n == 0:
+        conn.execute(
+            "INSERT INTO users (username, password_hash, is_superuser, email) VALUES (?, ?, 1, ?)",
+            (user, hash_password(pw), email),
+        )
+    elif email:
+        conn.execute(
+            "UPDATE users SET email = ? WHERE username = ? AND (email IS NULL OR email = '')",
+            (email, user),
+        )
 
 
 def _backfill_expense_user_ids(conn: sqlite3.Connection) -> None:
