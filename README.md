@@ -199,17 +199,17 @@ By default `run.sh` runs in the foreground. To keep it running after you close y
 
 ### systemd (recommended on Ubuntu/Debian)
 
-Create `/etc/systemd/system/snap-expenses.service`:
+Create `/etc/systemd/system/family-expenses.service`:
 
 ```ini
 [Unit]
-Description=Snap Expenses
+Description=Family Expenses
 After=network.target
 
 [Service]
-WorkingDirectory=/path/to/snap-expenses
-EnvironmentFile=/path/to/snap-expenses/.env
-ExecStart=/path/to/snap-expenses/venv/bin/python -m uvicorn backend.app:app --host 0.0.0.0 --port 8090
+WorkingDirectory=/path/to/family-expenses
+EnvironmentFile=/path/to/family-expenses/.env
+ExecStart=/path/to/family-expenses/venv/bin/python -m uvicorn backend.app:app --host 0.0.0.0 --port 8090
 Restart=always
 RestartSec=5
 
@@ -217,13 +217,13 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-Replace `/path/to/snap-expenses` with the actual path. Then:
+Replace `/path/to/family-expenses` with the actual path to the cloned repo. Then:
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable snap-expenses
-sudo systemctl start snap-expenses
-sudo systemctl status snap-expenses
+sudo systemctl enable family-expenses
+sudo systemctl start family-expenses
+sudo systemctl status family-expenses
 ```
 
 The app will now start automatically on boot.
