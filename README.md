@@ -4,13 +4,14 @@ AI-powered expense tracker with receipt scanning. Snap or upload a photo of your
 
 ## Features
 
-- **Receipt scanning** — On mobile: two buttons — **Scan** (opens camera) and **Upload** (opens photo library). On desktop: a single **Upload receipt** button. AI extracts line items, merchant, total, and category.
+- **Receipt scanning** — On mobile: two buttons — **Scan** (opens camera) and **Upload** (opens photo library). On desktop: a single **Upload receipt** button. AI extracts line items, merchant, total, and category. Finnish/European receipts (DD.MM.YYYY dates, `kpl` quantity sub-lines, `ale`/`alennus` discounts) are handled correctly.
 - **Receipt archive** — The image is saved to `data/receipts/archive/` with a descriptive filename when the expense is confirmed. Cancelled scans are not archived.
 - **Manual entry** — Full form matching the scan review: date, merchant, category (dropdown), line items (name × qty × unit price), total, card, note.
 - **Search** — Full-text search across merchant, category, date, card, note, and line items. Results open directly in the edit modal.
 - **Monthly summary** — Spending breakdown by category for the current month.
 - **History** — Browse all past expenses grouped by month; click any row to edit.
-- **Edit & delete** — Edit any field; delete with optional archive image removal. Delete requires confirmation and (if a receipt image exists) asks whether to remove the image too. Superuser only.
+- **Edit & delete** — Edit any field (including date); delete with optional archive image removal. Delete requires confirmation and (if a receipt image exists) asks whether to remove the image too. Superuser only.
+- **Charts / Analytics** — Date-range overview (month / 3 months / year / all time) with spend by category (bar chart), top merchants, by-month table, filterable category list with multi-select and combined totals, and a searchable item drill-down with live total.
 - **Configurable** — Set your own payment methods and currency via `.env`.
 
 ## Receipt archive
@@ -157,6 +158,7 @@ All settings are in `.env`:
 | `SNAP_DB_PATH` | `./data/snap.db` | SQLite database file |
 | `SNAP_BOOTSTRAP_ADMIN_USER` | (unset) | If `users` is empty, create this superuser on startup |
 | `SNAP_BOOTSTRAP_ADMIN_PASSWORD` | (unset) | Password for bootstrap admin |
+| `SNAP_BOOTSTRAP_ADMIN_EMAIL` | (unset) | Email for bootstrap admin; also backfills existing admin if email not yet set |
 | `SNAP_SESSION_MAX_AGE_SECONDS` | `1209600` (14d) | Session cookie lifetime |
 | `SNAP_COOKIE_SECURE` | `0` | Set `1` with HTTPS |
 
@@ -267,6 +269,7 @@ Expense and user routes expect a **session cookie** from `POST /api/auth/login` 
 |--------|----------|-------------|
 | GET | `/api/expenses/` | All expenses (optional `year`+`month`, `card`) |
 | GET | `/api/expenses/summary/{year}/{month}` | Monthly totals |
+| GET | `/api/expenses/analytics` | Aggregated analytics: by category/card/merchant/month + item drill-down (`date_from`, `date_to` optional) |
 | GET | `/api/expenses/search?q=` | Full-text search across all fields |
 | GET | `/api/expenses/cards` | Payment methods |
 | GET | `/api/expenses/archive` | Archive file list with expense-link flags |
