@@ -35,7 +35,7 @@ def _slugify(text: str) -> str:
     text = re.sub(r"\s+", "_", text)
     return re.sub(r"_+", "_", text).strip("_") or "unknown"
 
-DEFAULT_CARDS = ["Credit Card", "Debit Card", "ePassi", "Cash"]
+DEFAULT_CARDS = ["Credit Card", "Debit Card", "ePassi", "Cash", "Payment"]
 
 EXPENSE_SELECT = """
 SELECT e.*, u.username AS attributed_username

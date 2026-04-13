@@ -6,7 +6,7 @@ AI-powered expense tracker with receipt scanning. Snap or upload a photo of your
 
 - **Receipt scanning** — On mobile: two buttons — **Scan** (opens camera) and **Upload** (opens photo library). On desktop: a single **Upload receipt** button. AI extracts line items, merchant, total, and category. Finnish/European receipts (DD.MM.YYYY dates, `kpl` quantity sub-lines, `ale`/`alennus` discounts) are handled correctly.
 - **Receipt archive** — The image is saved to `data/receipts/archive/` with a descriptive filename when the expense is confirmed. Cancelled scans are not archived.
-- **Manual entry** — Full form matching the scan review: date, merchant, category (dropdown), line items (name × qty × unit price), total, card, note.
+- **Manual entry** — Full form matching the scan review: date, merchant, category (dropdown), line items (name × qty × unit price), total, payment type, note.
 - **Shared & personal expenses** — Expenses are shared by default (split equally among sharing users). Any expense can instead be attributed to a specific user as a personal expense. When viewing shared expenses, each row shows the per-person share alongside the full total.
 - **Date presets** — The front page expense list and summary can be filtered by Month / 3 months / Year / All time.
 - **Search** — Full-text search across merchant, category, date, card, note, and line items. Results open directly in the edit modal.
@@ -241,7 +241,7 @@ All settings live in `.env`:
 |----------|---------|-------------|
 | `OPENAI_API_KEY` | (required) | OpenAI API key. Restricted keys must have `model.request` scope. |
 | `SNAP_CURRENCY` | `EUR` | Currency symbol shown in the UI |
-| `SNAP_CARDS` | `Credit Card,Debit Card,ePassi,Cash` | Payment methods (comma-separated); first item is the default. Quote the value in `.env` if any item contains spaces. |
+| `SNAP_CARDS` | `Credit Card,Debit Card,ePassi,Cash,Payment` | Payment methods (comma-separated); first item is the default. Quote the value in `.env` if any item contains spaces. |
 | `SNAP_DB_PATH` | `./data/snap.db` | SQLite database file path |
 | `SNAP_BOOTSTRAP_ADMIN_USER` | (unset) | Creates this superuser on startup when the `users` table is empty |
 | `SNAP_BOOTSTRAP_ADMIN_PASSWORD` | (unset) | Password for the bootstrap admin |

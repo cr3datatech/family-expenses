@@ -908,7 +908,7 @@ function ReceiptReviewForm({
           {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
       </FormField>
-      <FormField label="Card">
+      <FormField label="Payment Type">
         <select value={card} onChange={(e) => setCard(e.target.value)} className="form-input">
           {cards.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
@@ -938,7 +938,7 @@ function ReceiptReviewForm({
 const CATEGORIES = [
   "Groceries", "Eating Out", "Transport", "Entertainment", "Health",
   "Utilities", "Shopping", "Subscriptions", "Travel", "Coffee",
-  "Household", "Rent", "Car", "Investments", "Insurance", "Gifts", "Education", "Other",
+  "Household", "Rent", "Car", "Investments", "Insurance", "Gifts", "Education", "Loan", "Other",
 ];
 
 interface ManualItem {
@@ -1073,7 +1073,7 @@ function ManualEntryForm({
       <FormField label="Total">
         <input type="number" step="0.01" value={total} onChange={(e) => setTotal(e.target.value)} placeholder="Amount (EUR)" required className="form-input" />
       </FormField>
-      <FormField label="Card">
+      <FormField label="Payment Type">
         <select value={card} onChange={(e) => setCard(e.target.value)} className="form-input">
           {cards.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
@@ -1258,7 +1258,7 @@ function EditExpenseForm({
           {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
       </FormField>
-      <FormField label="Card">
+      <FormField label="Payment Type">
         <select value={card} onChange={(e) => setCard(e.target.value)} className="form-input">
           {cards.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
