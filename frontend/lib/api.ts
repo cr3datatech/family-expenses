@@ -231,6 +231,9 @@ export const api = {
   deleteArchiveFile: (filename: string, deleteExpense = false) =>
     request<void>(`/expenses/archive/${encodeURIComponent(filename)}?delete_expense=${deleteExpense}`, { method: "DELETE" }),
 
+  deleteTmpFile: (filename: string) =>
+    request<void>(`/expenses/tmp/${encodeURIComponent(filename)}`, { method: "DELETE" }),
+
   scan: async (formData: FormData) => {
     const res = await fetch(`${BASE}/expenses/scan`, {
       method: "POST",

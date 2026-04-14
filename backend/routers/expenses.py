@@ -605,6 +605,14 @@ def set_expense_images(
     return row_to_expense(row)
 
 
+@router.delete("/tmp/{filename}", status_code=204)
+def delete_tmp_file(filename: str, _user: CurrentUserDep):
+    tmp_path = TMP_DIR / filename
+    if tmp_path.exists():
+        tmp_path.unlink()
+    return Response(status_code=204)
+
+
 @router.delete("/archive/{filename}", status_code=204)
 def delete_archive_file(
     filename: str,

@@ -2699,7 +2699,11 @@ function ScannedPanel({ onClose }: { onClose: () => void }) {
     // Optimistic: remove from list immediately
     setImages(prev => prev ? prev.filter(i => i.path !== img.path) : prev);
     try {
-      await api.deleteArchiveFile(img.filename);
+      if (img.location === "tmp") {
+        await api.deleteTmpFile(img.filename);
+      } else {
+        await api.deleteArchiveFile(img.filename);
+      }
       load();
     } catch {
       load(); // revert on error

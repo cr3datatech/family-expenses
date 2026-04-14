@@ -281,7 +281,7 @@ Examples:
 - **`<merchant>`** — shop name extracted from the receipt
 - **`<username>`** — user who saved the expense
 - Filename collisions get a counter suffix (`_2`, `_3`, …)
-- If the scan is cancelled, the temporary file in `data/receipts/tmp/` is left to age out — it is never promoted to the archive
+- If the scan is cancelled, the temporary file in `data/receipts/tmp/` can be deleted explicitly via the Scanned page or left to age out — it is never promoted to the archive
 
 The relative paths (`receipts/archive/<filename>`) are stored in the `receipt_paths` JSON array on the expense record. `receipt_photo_path` is kept for backwards compatibility and always mirrors the first element of `receipt_paths`. Images are shown as a grid in the edit modal and on the Scanned page.
 
@@ -334,6 +334,7 @@ Expense and user routes expect a **session cookie** from `POST /api/auth/login` 
 | PUT | `/api/expenses/{id}/images` | Replace the full image list for an expense; JSON `{ "paths": [...] }` |
 | POST | `/api/expenses/{id}/images/scan` | `multipart/form-data`, field `photo`; captures and attaches a new image to the expense (no AI) |
 | DELETE | `/api/expenses/{id}` | Delete expense record; images are kept and become orphaned (`?delete_archive=true` removes them) |
+| DELETE | `/api/expenses/tmp/{filename}` | Delete a temporary (staged) file |
 | DELETE | `/api/expenses/archive/{filename}` | Delete archive file; `?delete_expense=true` also removes the expense record |
 | DELETE | `/api/expenses/scanned/orphaned` | Delete all archive images not attached to any expense |
 
