@@ -71,6 +71,14 @@ def _migrate(conn: sqlite3.Connection) -> None:
     ucols = [r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()]
     if "email" not in ucols:
         conn.execute("ALTER TABLE users ADD COLUMN email TEXT")
+    if "receipt_paths" not in cols:
+        conn.execute("ALTER TABLE expenses ADD COLUMN receipt_paths TEXT")
+        rows = conn.execute("SELECT id, receipt_photo_path FROM expenses WHERE receipt_photo_path IS NOT NULL").fetchall()
+        for row in rows:
+            conn.execute(
+                "UPDATE expenses SET receipt_paths = ? WHERE id = ?",
+                (json.dumps([row[1]]), row[0]),
+            )
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS password_reset_tokens (

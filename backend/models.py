@@ -21,6 +21,7 @@ class ExpenseCreate(BaseModel):
     card: str = "Cash"
     note: Optional[str] = None
     receipt_photo_path: Optional[str] = None
+    receipt_paths: list[str] = []
     ai_extracted: bool = False
     is_shared: bool = True
     shared_with: list[int] = []
@@ -39,6 +40,7 @@ class ExpenseUpdate(BaseModel):
     category: Optional[str] = None
     card: Optional[str] = None
     note: Optional[str] = None
+    receipt_paths: Optional[list[str]] = None
     is_shared: Optional[bool] = None
     shared_with: Optional[list[int]] = None
     user_id: Optional[int] = Field(
@@ -58,6 +60,7 @@ class ExpenseResponse(BaseModel):
     card: str
     note: Optional[str]
     receipt_photo_path: Optional[str]
+    receipt_paths: list[str] = []
     ai_extracted: bool
     created_at: str
     is_shared: bool

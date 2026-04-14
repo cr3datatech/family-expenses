@@ -62,6 +62,7 @@ export interface Expense {
   card: string;
   note: string | null;
   receipt_photo_path: string | null;
+  receipt_paths: string[];
   ai_extracted: boolean;
   created_at: string;
   is_shared: boolean;
@@ -80,6 +81,7 @@ export interface ExpenseCreate {
   card: string;
   note?: string;
   receipt_photo_path?: string;
+  receipt_paths?: string[];
   is_shared?: boolean;
   shared_with?: number[];
   user_id?: number;
@@ -102,6 +104,14 @@ export interface ReceiptScanResult {
   category: string;
   receipt_path: string | null;
   model: string | null;
+}
+
+export interface ScannedImage {
+  filename: string;
+  path: string;
+  location: "archive" | "tmp";
+  expense: Expense | null;
+  month: string;
 }
 
 export interface AnalyticsData {
@@ -249,6 +259,47 @@ export const api = {
     if (dateFrom) params.set("date_from", dateFrom);
     if (dateTo) params.set("date_to", dateTo);
     return request<AnalyticsData>(`/expenses/analytics?${params}`);
+  },
+
+  scanned: () => request<ScannedImage[]>("/expenses/scanned"),
+
+  deleteOrphanedImages: () =>
+    request<{ deleted: string[]; count: number }>("/expenses/scanned/orphaned", { method: "DELETE" }),
+
+  setExpenseImages: (id: number, paths: string[]) =>
+    request<Expense>(`/expenses/${id}/images`, {
+      method: "PUT",
+      body: JSON.stringify({ paths }),
+    }),
+
+  uploadOrphanedImage: async (file: File): Promise<{ path: string; filename: string }> => {
+    const formData = new FormData();
+    formData.append("photo", file);
+    const res = await fetch(`${BASE}/expenses/scanned/upload`, {
+      method: "POST",
+      body: formData,
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const detail = await errorBodyMessage(res);
+      throw new Error(detail ? `${res.status}: ${detail}` : `HTTP ${res.status}`);
+    }
+    return res.json();
+  },
+
+  scanAndAttach: async (expenseId: number, file: File): Promise<Expense> => {
+    const formData = new FormData();
+    formData.append("photo", file);
+    const res = await fetch(`${BASE}/expenses/${expenseId}/images/scan`, {
+      method: "POST",
+      body: formData,
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const detail = await errorBodyMessage(res);
+      throw new Error(detail ? `${res.status}: ${detail}` : `HTTP ${res.status}`);
+    }
+    return res.json();
   },
 
   forgotPassword: (email: string) =>

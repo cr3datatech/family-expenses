@@ -6,13 +6,16 @@ AI-powered expense tracker with receipt scanning. Snap or upload a photo of your
 
 - **Receipt scanning** — On mobile: two buttons — **Scan** (opens camera) and **Upload** (opens photo library). On desktop: a single **Upload receipt** button. AI extracts line items, merchant, total, and category. Finnish/European receipts (DD.MM.YYYY dates, `kpl` quantity sub-lines, `ale`/`alennus` discounts) are handled correctly.
 - **Receipt archive** — The image is saved to `data/receipts/archive/` with a descriptive filename when the expense is confirmed. Cancelled scans are not archived.
+- **Multiple images per expense** — Each expense can have any number of receipt images. Images are managed in a grid in the edit form: tap × to remove, **+ Add** to pick from the scanned pool, or **📷 Scan** (mobile only) to capture and attach a new photo without running AI. Removing an image from an expense makes it orphaned (it is never deleted automatically).
+- **Scanned page** — Full-screen panel (menu → **Scanned**) showing every receipt image in the archive. Images are grouped into **Attached** (linked to an expense) and **Orphaned** (not linked), each sorted by month. Actions on each card: **Attach** / **Reassign** (pick any expense), **Detach** (move back to orphaned), or **Delete** (orphaned only). All changes update the UI in real time without a page refresh.
+- **Upload / Scan on Scanned page** — A sticky header bar lets you add images directly to the orphaned pool. On mobile both **Upload** (file picker) and **Scan** (rear camera) are shown side-by-side; on desktop only **Upload** is shown.
 - **Manual entry** — Full form matching the scan review: date, merchant, category (dropdown), line items (name × qty × unit price), total, payment type, note.
 - **Shared & personal expenses** — Expenses are shared by default (split equally among sharing users). Any expense can instead be attributed to a specific user as a personal expense. When viewing shared expenses, each row shows the per-person share alongside the full total.
 - **Date presets** — The front page expense list and summary can be filtered by Month / 3 months / Year / All time.
 - **Search** — Full-text search across merchant, category, date, card, note, and line items. Results open directly in the edit modal.
 - **Personal page** — Per-user view with date presets (month / 3 months / year / all time). Filter by personal expenses (your own or other users') and shared expenses; the "Shared among" sub-filter shows only expenses shared among all selected users. Displays a "Your share" total that divides shared expense totals by the number of sharing users.
 - **All Expenses** — Full expense history across all users, grouped by month, with the same user/shared filters and "Your share" summary. Defaults to all time.
-- **Edit & delete** — Edit any field (including date and attribution); delete with optional archive image removal. Delete requires confirmation and (if a receipt image exists) asks whether to remove the image too. Superuser only.
+- **Edit & delete** — Edit any field (including date and attribution); delete requires confirmation. Deleting an expense never removes its receipt images — they become orphaned and remain accessible on the Scanned page. Superuser only.
 - **Charts / Analytics** — Date-range overview (month / 3 months / year / all time) with spend by category (bar chart), top merchants, by-month table, filterable category list with multi-select and combined totals, and a searchable item drill-down. Categories, merchants, and months are clickable and open a drill-down list of matching expenses (each editable).
 - **User management** — Superusers can create, edit (username, password, email, superuser flag), and delete users from a dedicated panel.
 - **Configurable** — Set your own payment methods and currency via `.env`.
@@ -280,7 +283,7 @@ Examples:
 - Filename collisions get a counter suffix (`_2`, `_3`, …)
 - If the scan is cancelled, the temporary file in `data/receipts/tmp/` is left to age out — it is never promoted to the archive
 
-The relative path (`receipts/archive/<filename>`) is stored in `receipt_photo_path` on the expense record and shown as a clickable link in the edit modal.
+The relative paths (`receipts/archive/<filename>`) are stored in the `receipt_paths` JSON array on the expense record. `receipt_photo_path` is kept for backwards compatibility and always mirrors the first element of `receipt_paths`. Images are shown as a grid in the edit modal and on the Scanned page.
 
 ---
 
@@ -321,13 +324,18 @@ Expense and user routes expect a **session cookie** from `POST /api/auth/login` 
 | GET | `/api/expenses/search?q=` | Full-text search across all fields |
 | GET | `/api/expenses/cards` | Payment methods |
 | GET | `/api/expenses/archive` | Archive file list with expense-link flags |
+| GET | `/api/expenses/scanned` | All archive images with attached-expense info, grouped for the Scanned page |
 | POST | `/api/expenses/` | Create; moves staged receipt to archive if present |
 | POST | `/api/expenses/scan` | `multipart/form-data`, field `photo`; stages image, returns AI data + `receipt_path` |
+| POST | `/api/expenses/scanned/upload` | `multipart/form-data`, field `photo`; saves to archive as an orphaned image (no AI) |
 | POST | `/api/expenses/categorize` | Auto-categorize text |
 | GET | `/api/config` | App config (e.g. `scan_model`) |
 | PUT | `/api/expenses/{id}` | Update (`user_id` for superuser) |
-| DELETE | `/api/expenses/{id}` | Delete; `?delete_archive=true` also removes the image |
+| PUT | `/api/expenses/{id}/images` | Replace the full image list for an expense; JSON `{ "paths": [...] }` |
+| POST | `/api/expenses/{id}/images/scan` | `multipart/form-data`, field `photo`; captures and attaches a new image to the expense (no AI) |
+| DELETE | `/api/expenses/{id}` | Delete expense record; images are kept and become orphaned (`?delete_archive=true` removes them) |
 | DELETE | `/api/expenses/archive/{filename}` | Delete archive file; `?delete_expense=true` also removes the expense record |
+| DELETE | `/api/expenses/scanned/orphaned` | Delete all archive images not attached to any expense |
 
 ---
 

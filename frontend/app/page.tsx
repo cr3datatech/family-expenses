@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast, ToastProvider } from "@/components/Toast";
 import { todayISO } from "@/lib/dates";
-import { api, AnalyticsData, Expense, ExpenseCreate, ReceiptScanResult, User } from "@/lib/api";
+import { api, AnalyticsData, Expense, ExpenseCreate, ReceiptScanResult, ScannedImage, User } from "@/lib/api";
 import PhotoCapture from "@/components/PhotoCapture";
 import Modal from "@/components/Modal";
 
@@ -335,6 +335,7 @@ function HeaderMenu({
   onCharts,
   onPersonal,
   onAllExpenses,
+  onScanned,
   onUsers,
   onLogout,
 }: {
@@ -344,6 +345,7 @@ function HeaderMenu({
   onCharts: () => void;
   onPersonal: () => void;
   onAllExpenses: () => void;
+  onScanned: () => void;
   onUsers: () => void;
   onLogout: () => void;
 }) {
@@ -389,6 +391,7 @@ function HeaderMenu({
           {item("Charts", onCharts)}
           {item("Personal", onPersonal)}
           {item("All Expenses", onAllExpenses)}
+          {item("Scanned", onScanned)}
           {isSuperuser && item("Users", onUsers)}
           <div className="border-t border-snap-100" />
           {item("Log out", onLogout, true)}
@@ -412,6 +415,7 @@ function ExpensesPage({
   const [showAdd, setShowAdd] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [showAllExpenses, setShowAllExpenses] = useState(false);
+  const [showScanned, setShowScanned] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   /** `null` = idle; otherwise current step message for receipt scan */
   const [scanPhase, setScanPhase] = useState<string | null>(null);
@@ -577,6 +581,7 @@ function ExpensesPage({
       {showAnalytics && <AnalyticsPanel onClose={() => setShowAnalytics(false)} cards={cards} currentUser={user} allUsers={allUsers} />}
       {showPersonal && <PersonalPanel onClose={() => setShowPersonal(false)} cards={cards} currentUser={user} allUsers={allUsers} />}
       {showAllExpenses && <AllExpensesPanel onClose={() => setShowAllExpenses(false)} cards={cards} currentUser={user} allUsers={allUsers} />}
+      {showScanned && <ScannedPanel onClose={() => setShowScanned(false)} />}
       <div className="p-4 space-y-3 max-w-lg mx-auto">
       <div className="sticky top-0 z-40 bg-snap-50/90 backdrop-blur-sm -mx-4 px-4 -mt-4 mb-2">
         <div className="py-3 flex items-center justify-between gap-2">
@@ -588,6 +593,7 @@ function ExpensesPage({
           onCharts={() => setShowAnalytics(true)}
           onPersonal={() => setShowPersonal(true)}
           onAllExpenses={() => setShowAllExpenses(true)}
+          onScanned={() => setShowScanned(true)}
           onUsers={() => { refreshUsers(); setShowAdmin(true); }}
           onLogout={() => void onLogout()}
         />
@@ -748,17 +754,10 @@ function ExpensesPage({
                 {user.is_superuser && confirmDeleteId === exp.id && (
                   <div className="mt-1 px-3 py-2.5 rounded-xl border border-red-200 bg-red-50 space-y-2 text-xs">
                     <p className="font-semibold text-red-700">Sure you want to delete this expense?</p>
-                    {exp.receipt_photo_path && <p className="text-red-600">Also delete the archived receipt image?</p>}
                     <div className="flex gap-2 pt-0.5">
-                      {exp.receipt_photo_path && (
-                        <button type="button" onClick={() => { handleDelete(exp.id, true); setConfirmDeleteId(null); }}
-                          className="flex-1 py-1.5 rounded-lg bg-red-600 text-white font-semibold">
-                          Yes, delete both
-                        </button>
-                      )}
                       <button type="button" onClick={() => { handleDelete(exp.id, false); setConfirmDeleteId(null); }}
-                        className="flex-1 py-1.5 rounded-lg bg-red-100 text-red-700 font-semibold">
-                        {exp.receipt_photo_path ? "Expense only" : "Yes, delete"}
+                        className="flex-1 py-1.5 rounded-lg bg-red-600 text-white font-semibold">
+                        Yes, delete
                       </button>
                       <button type="button" onClick={() => setConfirmDeleteId(null)}
                         className="flex-1 py-1.5 rounded-lg border border-snap-200 text-skin-secondary font-semibold">
@@ -802,7 +801,7 @@ function ExpensesPage({
             expense={editingExpense}
             onSubmit={handleEditSave}
             onCancel={() => setEditingExpense(null)}
-            onDelete={(deleteArchive) => { handleDelete(editingExpense.id, deleteArchive); setEditingExpense(null); }}
+            onDelete={() => { handleDelete(editingExpense.id, false); setEditingExpense(null); }}
             currentUser={user}
             allUsers={allUsers}
           />
@@ -1207,7 +1206,7 @@ function EditExpenseForm({
   expense: Expense;
   onSubmit: (data: ExpenseCreate & { user_id?: number }) => void;
   onCancel: () => void;
-  onDelete: (deleteArchive: boolean) => void;
+  onDelete: () => void;
   currentUser: User;
   allUsers: User[];
 }) {
@@ -1224,6 +1223,25 @@ function EditExpenseForm({
   const [sharedWith, setSharedWith] = useState<number[]>(
     expense.shared_with?.length ? expense.shared_with : allUsers.map(u => u.id)
   );
+  const [receiptPaths, setReceiptPaths] = useState<string[]>(expense.receipt_paths ?? []);
+  const [showImagePicker, setShowImagePicker] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const scanInputRef = useRef<HTMLInputElement>(null);
+
+  const handleScanCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setScanning(true);
+    try {
+      const updated = await api.scanAndAttach(expense.id, file);
+      setReceiptPaths(updated.receipt_paths);
+    } catch {
+      // silently ignore — user can retry
+    } finally {
+      setScanning(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1238,6 +1256,7 @@ function EditExpenseForm({
         category,
         card,
         note: note || undefined,
+        receipt_paths: receiptPaths,
         is_shared: isShared,
         shared_with: isShared ? sharedWith : undefined,
       };
@@ -1251,18 +1270,70 @@ function EditExpenseForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      {expense.receipt_photo_path && (
-        <a
-          href={`/${expense.receipt_photo_path}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-snap-50 border border-snap-200 text-xs text-snap-700 font-medium hover:bg-snap-100 transition-colors"
-        >
-          <span className="text-base leading-none">🧾</span>
-          <span className="truncate">{expense.receipt_photo_path.split("/").pop()}</span>
-        </a>
+    <>
+      {showImagePicker && (
+        <ScannedImagePickerModal
+          currentPaths={receiptPaths}
+          onAdd={(path) => {
+            const newPaths = [...receiptPaths, path];
+            setReceiptPaths(newPaths);
+            api.setExpenseImages(expense.id, newPaths).catch(() => {});
+            setShowImagePicker(false);
+          }}
+          onClose={() => setShowImagePicker(false)}
+        />
       )}
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide">Images</label>
+          <div className="flex items-center gap-2">
+            {/* Scan button: mobile only */}
+            <button
+              type="button"
+              onClick={() => scanInputRef.current?.click()}
+              disabled={scanning}
+              className="sm:hidden text-[11px] font-semibold text-snap-600 active:text-snap-800 disabled:opacity-50"
+            >
+              {scanning ? "Saving…" : "📷 Scan"}
+            </button>
+            <button type="button" onClick={() => setShowImagePicker(true)} className="text-[11px] font-semibold text-snap-600 active:text-snap-800">+ Add</button>
+          </div>
+        </div>
+        <input
+          ref={scanInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleScanCapture}
+          className="hidden"
+        />
+        {receiptPaths.length > 0 ? (
+          <div className="grid grid-cols-3 gap-1.5">
+            {receiptPaths.map(path => (
+              <div key={path} className="relative rounded-lg overflow-hidden border border-snap-200">
+                <a href={`/${path}`} target="_blank" rel="noopener noreferrer">
+                  <img src={`/${path}`} alt={path.split("/").pop()} className="w-full h-20 object-cover" />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newPaths = receiptPaths.filter(p => p !== path);
+                    setReceiptPaths(newPaths);
+                    api.setExpenseImages(expense.id, newPaths).catch(() => {});
+                  }}
+                  className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/50 text-white text-xs flex items-center justify-center leading-none hover:bg-black/70"
+                  aria-label="Remove image"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[11px] text-skin-secondary">No images attached.</p>
+        )}
+      </div>
       <FormField label="Date">
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="form-input" />
       </FormField>
@@ -1330,25 +1401,16 @@ function EditExpenseForm({
       ) : currentUser.is_superuser ? (
         <div className="px-3 py-2.5 rounded-xl border border-red-200 bg-red-50 space-y-2 text-xs">
           <p className="font-semibold text-red-700">Sure you want to delete this expense?</p>
-          {expense.receipt_photo_path && (
-            <p className="text-red-600">Also delete the archived receipt image?</p>
+          {receiptPaths.length > 0 && (
+            <p className="text-red-600">Images will be kept and can be found in Scanned.</p>
           )}
           <div className="flex gap-2 pt-0.5">
-            {expense.receipt_photo_path && (
-              <button
-                type="button"
-                onClick={() => onDelete(true)}
-                className="flex-1 py-1.5 rounded-lg bg-red-600 text-white font-semibold"
-              >
-                Yes, delete both
-              </button>
-            )}
             <button
               type="button"
-              onClick={() => onDelete(false)}
-              className="flex-1 py-1.5 rounded-lg bg-red-100 text-red-700 font-semibold"
+              onClick={() => onDelete()}
+              className="flex-1 py-1.5 rounded-lg bg-red-600 text-white font-semibold"
             >
-              {expense.receipt_photo_path ? "Expense only" : "Yes, delete"}
+              Yes, delete
             </button>
             <button
               type="button"
@@ -1361,6 +1423,7 @@ function EditExpenseForm({
         </div>
       ) : null}
     </form>
+    </>
   );
 }
 
@@ -1771,7 +1834,7 @@ function PersonalPanel({
             expense={editingExpense}
             onSubmit={handleEditSave}
             onCancel={() => setEditingExpense(null)}
-            onDelete={(del) => handleDelete(editingExpense.id, del)}
+            onDelete={() => handleDelete(editingExpense.id, false)}
             currentUser={currentUser}
             allUsers={allUsers}
           />
@@ -2024,7 +2087,7 @@ function AllExpensesPanel({
             expense={editingExpense}
             onSubmit={handleEditSave}
             onCancel={() => setEditingExpense(null)}
-            onDelete={(del) => handleDelete(editingExpense.id, del)}
+            onDelete={() => handleDelete(editingExpense.id, false)}
             currentUser={currentUser}
             allUsers={allUsers}
           />
@@ -2494,7 +2557,7 @@ function AnalyticsPanel({ onClose, cards, currentUser, allUsers }: {
                 expense={editingExpense}
                 onSubmit={handleEditSave}
                 onCancel={() => setEditingExpense(null)}
-                onDelete={(deleteArchive) => handleDelete(editingExpense.id, deleteArchive)}
+                onDelete={() => handleDelete(editingExpense.id, false)}
                 currentUser={currentUser}
                 allUsers={allUsers}
               />
@@ -2589,6 +2652,373 @@ function AnalyticsPanel({ onClose, cards, currentUser, allUsers }: {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function ScannedPanel({ onClose }: { onClose: () => void }) {
+  const [images, setImages] = useState<ScannedImage[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [deletingPath, setDeletingPath] = useState<string | null>(null);
+  const [attachingImage, setAttachingImage] = useState<ScannedImage | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const uploadRef = useRef<HTMLInputElement>(null);
+  const scanRef = useRef<HTMLInputElement>(null);
+
+  const handleUploadCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    try {
+      await api.uploadOrphanedImage(file);
+      load();
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const load = () => {
+    setLoading(true);
+    api.scanned()
+      .then(setImages)
+      .catch(() => setImages([]))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, []);
+
+  // Lock body scroll while panel is open
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
+  const handleDeleteOrphan = async (img: ScannedImage) => {
+    setDeletingPath(img.path);
+    // Optimistic: remove from list immediately
+    setImages(prev => prev ? prev.filter(i => i.path !== img.path) : prev);
+    try {
+      await api.deleteArchiveFile(img.filename);
+      load();
+    } catch {
+      load(); // revert on error
+    } finally {
+      setDeletingPath(null);
+    }
+  };
+
+  const handleAttach = async (img: ScannedImage, targetExpense: Expense) => {
+    const newPaths = [...(targetExpense.receipt_paths ?? [])];
+    if (!newPaths.includes(img.path)) newPaths.push(img.path);
+    // Optimistic: update image to show new expense, and remove it from any prior expense
+    setImages(prev => prev ? prev.map(i => {
+      if (i.path === img.path) return { ...i, expense: { ...targetExpense, receipt_paths: newPaths } };
+      // remove from old expense if it had this path
+      if (i.expense && i.expense.id === targetExpense.id) return { ...i, expense: { ...i.expense, receipt_paths: newPaths } };
+      // remove path from old owner if it was reassigned
+      if (img.expense && i.expense && i.expense.id === img.expense.id && i.path !== img.path) {
+        const updatedPaths = (i.expense.receipt_paths ?? []).filter(p => p !== img.path);
+        return { ...i, expense: { ...i.expense, receipt_paths: updatedPaths } };
+      }
+      return i;
+    }) : prev);
+    setAttachingImage(null);
+    try {
+      await api.setExpenseImages(targetExpense.id, newPaths);
+      load();
+    } catch {
+      load();
+    }
+  };
+
+  const handleDetach = async (img: ScannedImage) => {
+    if (!img.expense) return;
+    const newPaths = (img.expense.receipt_paths ?? []).filter(p => p !== img.path);
+    // Optimistic: mark image as orphaned immediately
+    setImages(prev => prev ? prev.map(i =>
+      i.path === img.path ? { ...i, expense: null } : i
+    ) : prev);
+    try {
+      await api.setExpenseImages(img.expense.id, newPaths);
+      load();
+    } catch {
+      load();
+    }
+  };
+
+  const formatMonthHeader = (ym: string) => {
+    if (ym === "unknown") return "Unknown date";
+    const [year, month] = ym.split("-");
+    return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  };
+
+  const attached = (images ?? []).filter(i => i.expense !== null);
+  const orphaned = (images ?? []).filter(i => i.expense === null);
+
+  const groupByMonth = (imgs: ScannedImage[]) =>
+    imgs.reduce<Record<string, ScannedImage[]>>((acc, img) => {
+      if (!acc[img.month]) acc[img.month] = [];
+      acc[img.month].push(img);
+      return acc;
+    }, {});
+
+  const sortedMonthKeys = (grouped: Record<string, ScannedImage[]>) =>
+    Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+
+  const attachedGrouped = groupByMonth(attached);
+  const orphanedGrouped = groupByMonth(orphaned);
+
+  const renderCard = (img: ScannedImage) => (
+    <div key={img.path} className="rounded-xl overflow-hidden bg-white border border-snap-200">
+      <a href={`/${img.path}`} target="_blank" rel="noopener noreferrer" className="block">
+        <img src={`/${img.path}`} alt={img.filename} className="w-full h-32 object-cover" />
+      </a>
+      <div className="px-2 py-1.5 space-y-1">
+        {img.expense ? (
+          <div>
+            <p className="text-[11px] font-semibold text-snap-800 truncate">{img.expense.merchant || img.expense.category}</p>
+            <p className="text-[10px] text-skin-secondary">{img.expense.date} · {img.expense.total.toFixed(2)} {img.expense.currency}</p>
+          </div>
+        ) : (
+          <p className="text-[10px] text-skin-secondary italic">Orphaned</p>
+        )}
+        <div className="flex gap-1 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setAttachingImage(img)}
+            className="flex-1 py-1 rounded-lg bg-snap-100 text-snap-700 text-[10px] font-semibold hover:bg-snap-200 transition-colors"
+          >
+            {img.expense ? "Reassign" : "Attach"}
+          </button>
+          {img.expense ? (
+            <button
+              type="button"
+              onClick={() => handleDetach(img)}
+              className="px-2 py-1 rounded-lg bg-red-50 text-red-500 text-[10px] font-semibold hover:bg-red-100 transition-colors"
+            >
+              Detach
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleDeleteOrphan(img)}
+              disabled={deletingPath === img.path}
+              className="px-2 py-1 rounded-lg bg-red-50 text-red-500 text-[10px] font-semibold hover:bg-red-100 transition-colors disabled:opacity-50"
+            >
+              {deletingPath === img.path ? "…" : "Delete"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderSection = (
+    label: string,
+    grouped: Record<string, ScannedImage[]>,
+    count: number,
+  ) => (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <h2 className="text-sm font-bold text-snap-800">{label}</h2>
+        <span className="text-xs text-skin-secondary">{count}</span>
+      </div>
+      {sortedMonthKeys(grouped).map(ym => (
+        <div key={ym} className="space-y-2">
+          <p className="text-[11px] font-bold text-snap-600 uppercase tracking-wide">{formatMonthHeader(ym)}</p>
+          <div className="grid grid-cols-2 gap-2">
+            {grouped[ym].map(renderCard)}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <>
+      {attachingImage && (
+        <ExpensePickerModal
+          title={attachingImage.expense ? `Reassign from ${attachingImage.expense.merchant || attachingImage.expense.category}` : "Attach to expense"}
+          onSelect={(exp) => handleAttach(attachingImage, exp)}
+          onClose={() => setAttachingImage(null)}
+        />
+      )}
+      <div className="fixed inset-0 z-50 bg-snap-50 overflow-y-auto">
+        <div className="sticky top-0 z-10 bg-snap-50/90 backdrop-blur-sm border-b border-snap-100">
+          <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
+            <button type="button" onClick={onClose} className="text-sm font-semibold text-snap-600">← Back</button>
+            <h1 className="text-base font-bold text-snap-800 flex-1">Scanned</h1>
+            {images && (
+              <span className="text-xs text-skin-secondary">{images.length} image{images.length !== 1 ? "s" : ""}</span>
+            )}
+          </div>
+          <div className="max-w-lg mx-auto px-4 pb-3 flex gap-2">
+            <button
+              type="button"
+              onClick={() => uploadRef.current?.click()}
+              disabled={uploading}
+              className="flex-1 py-2 rounded-xl bg-white border border-snap-200 text-snap-700 text-sm font-semibold hover:bg-snap-50 transition-colors disabled:opacity-50"
+            >
+              {uploading ? "Saving…" : "Upload"}
+            </button>
+            <button
+              type="button"
+              onClick={() => scanRef.current?.click()}
+              disabled={uploading}
+              className="sm:hidden flex-1 py-2 rounded-xl bg-white border border-snap-200 text-snap-700 text-sm font-semibold hover:bg-snap-50 transition-colors disabled:opacity-50"
+            >
+              Scan
+            </button>
+          </div>
+          {/* Upload: file picker */}
+          <input ref={uploadRef} type="file" accept="image/*" onChange={handleUploadCapture} className="hidden" />
+          {/* Scan: camera (mobile) */}
+          <input ref={scanRef} type="file" accept="image/*" capture="environment" onChange={handleUploadCapture} className="hidden" />
+        </div>
+
+        <div className="max-w-lg mx-auto px-4 py-4 space-y-6">
+          {loading && (
+            <p className="text-sm text-skin-secondary text-center py-8">Loading…</p>
+          )}
+
+          {!loading && images !== null && (
+            <>
+              {attached.length > 0
+                ? renderSection("Attached", attachedGrouped, attached.length)
+                : <p className="text-sm text-skin-secondary text-center py-4">No attached images.</p>
+              }
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-bold text-snap-800">Orphaned</h2>
+                  <span className="text-xs text-skin-secondary">{orphaned.length}</span>
+                </div>
+                {orphaned.length === 0 ? (
+                  <p className="text-sm text-skin-secondary">No orphaned images.</p>
+                ) : (
+                  sortedMonthKeys(orphanedGrouped).map(ym => (
+                    <div key={ym} className="space-y-2">
+                      <p className="text-[11px] font-bold text-snap-600 uppercase tracking-wide">{formatMonthHeader(ym)}</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {orphanedGrouped[ym].map(renderCard)}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function ExpensePickerModal({ title, onSelect, onClose }: {
+  title: string;
+  onSelect: (expense: Expense) => void;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [allExpenses, setAllExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.list()
+      .then(exps => {
+        const sorted = [...exps].sort((a, b) => b.date.localeCompare(a.date));
+        setAllExpenses(sorted);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = query.trim()
+    ? allExpenses.filter(e =>
+        (e.merchant ?? "").toLowerCase().includes(query.toLowerCase()) ||
+        e.category.toLowerCase().includes(query.toLowerCase()) ||
+        e.date.includes(query)
+      )
+    : allExpenses;
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/40 flex items-end justify-center">
+      <div className="w-full max-w-lg bg-white rounded-t-2xl max-h-[80vh] flex flex-col">
+        <div className="px-4 pt-4 pb-2 flex items-center gap-3 border-b border-snap-100">
+          <button type="button" onClick={onClose} className="text-sm font-semibold text-snap-600 shrink-0">Cancel</button>
+          <h2 className="text-sm font-bold text-snap-800 flex-1 truncate">{title}</h2>
+        </div>
+        <div className="px-4 py-2 border-b border-snap-100">
+          <input
+            type="text"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search by merchant, category or date…"
+            className="form-input w-full"
+            autoFocus
+          />
+        </div>
+        <div className="overflow-y-auto flex-1 px-4 py-2 space-y-1">
+          {loading && <p className="text-sm text-skin-secondary text-center py-4">Loading…</p>}
+          {!loading && filtered.length === 0 && <p className="text-sm text-skin-secondary text-center py-4">No expenses found.</p>}
+          {filtered.slice(0, 50).map(exp => (
+            <button
+              key={exp.id}
+              type="button"
+              onClick={() => onSelect(exp)}
+              className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-snap-50 transition-colors"
+            >
+              <p className="text-sm font-semibold text-snap-800 truncate">{exp.merchant || exp.category}</p>
+              <p className="text-[10px] text-skin-secondary">{exp.date} · {exp.total.toFixed(2)} {exp.currency} · {exp.category}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ScannedImagePickerModal({ currentPaths, onAdd, onClose }: {
+  currentPaths: string[];
+  onAdd: (path: string) => void;
+  onClose: () => void;
+}) {
+  const [images, setImages] = useState<ScannedImage[] | null>(null);
+
+  useEffect(() => {
+    api.scanned().then(setImages).catch(() => setImages([]));
+  }, []);
+
+  const available = (images ?? []).filter(img => !currentPaths.includes(img.path));
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/40 flex items-end justify-center">
+      <div className="w-full max-w-lg bg-white rounded-t-2xl max-h-[80vh] flex flex-col">
+        <div className="px-4 pt-4 pb-3 flex items-center gap-3 border-b border-snap-100">
+          <button type="button" onClick={onClose} className="text-sm font-semibold text-snap-600 shrink-0">Cancel</button>
+          <h2 className="text-sm font-bold text-snap-800 flex-1">Add image</h2>
+          {images && <span className="text-xs text-skin-secondary">{available.length} available</span>}
+        </div>
+        <div className="overflow-y-auto flex-1 px-4 py-3">
+          {images === null && <p className="text-sm text-skin-secondary text-center py-4">Loading…</p>}
+          {images !== null && available.length === 0 && (
+            <p className="text-sm text-skin-secondary text-center py-4">No available images.</p>
+          )}
+          {available.length > 0 && (
+            <div className="grid grid-cols-3 gap-2">
+              {available.map(img => (
+                <button key={img.path} type="button" onClick={() => onAdd(img.path)} className="block rounded-xl overflow-hidden border-2 border-transparent hover:border-snap-400 transition-colors">
+                  <img src={`/${img.path}`} alt={img.filename} className="w-full h-24 object-cover" />
+                  <div className="px-1 py-1 bg-snap-50">
+                    <p className="text-[9px] text-skin-secondary truncate">{img.expense ? (img.expense.merchant || img.expense.category) : "Orphaned"}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

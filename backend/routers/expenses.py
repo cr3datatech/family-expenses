@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
+from pydantic import BaseModel
 
 from backend.database import get_db
 from backend.deps import CurrentUserDep, SuperuserDep
@@ -54,7 +55,35 @@ def row_to_expense(row: sqlite3.Row) -> dict:
     sw_raw = d.get("shared_with")
     d["shared_with"] = json.loads(sw_raw) if sw_raw else []
     d["user_id"] = int(d["user_id"])
+    rp_raw = d.get("receipt_paths")
+    if rp_raw:
+        paths = json.loads(rp_raw)
+    elif d.get("receipt_photo_path"):
+        paths = [d["receipt_photo_path"]]
+    else:
+        paths = []
+    d["receipt_paths"] = paths
+    d["receipt_photo_path"] = paths[0] if paths else None
     return d
+
+
+def _reassign_paths(paths: list[str], expense_id: int, db: sqlite3.Connection) -> None:
+    """Remove the given paths from any expense other than expense_id."""
+    if not paths:
+        return
+    others = db.execute(
+        "SELECT id, receipt_paths FROM expenses WHERE id != ? AND receipt_paths IS NOT NULL",
+        (expense_id,),
+    ).fetchall()
+    for other in others:
+        other_paths = json.loads(other["receipt_paths"] or "[]")
+        updated = [p for p in other_paths if p not in paths]
+        if len(updated) != len(other_paths):
+            primary = updated[0] if updated else None
+            db.execute(
+                "UPDATE expenses SET receipt_paths = ?, receipt_photo_path = ? WHERE id = ?",
+                (json.dumps(updated), primary, other["id"]),
+            )
 
 
 def _resolve_attributed_user_id(
@@ -199,11 +228,18 @@ def create_expense(
     if receipt_path and receipt_path.startswith("receipts/tmp/"):
         receipt_path = _archive_tmp_receipt(receipt_path, expense, current.username)
 
+    # Build full receipt_paths list
+    paths = list(expense.receipt_paths or [])
+    if receipt_path and receipt_path not in paths:
+        paths.insert(0, receipt_path)
+    primary = paths[0] if paths else None
+    receipt_paths_json = json.dumps(paths)
+
     items_json = json.dumps([item.model_dump() for item in expense.items])
     shared_with_json = json.dumps(expense.shared_with) if expense.is_shared else None
     cursor = db.execute(
-        "INSERT INTO expenses (date, merchant, items, total, currency, category, card, note, receipt_photo_path, ai_extracted, user_id, is_shared, shared_with) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO expenses (date, merchant, items, total, currency, category, card, note, receipt_photo_path, receipt_paths, ai_extracted, user_id, is_shared, shared_with) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             expense.date,
             expense.merchant,
@@ -213,7 +249,8 @@ def create_expense(
             expense.category,
             expense.card,
             expense.note,
-            receipt_path,
+            primary,
+            receipt_paths_json,
             int(expense.ai_extracted),
             uid,
             1 if expense.is_shared else 0,
@@ -277,6 +314,83 @@ def list_archive(_user: CurrentUserDep, db: sqlite3.Connection = Depends(get_db)
         for row in db.execute("SELECT receipt_photo_path FROM expenses WHERE receipt_photo_path IS NOT NULL").fetchall()
     }
     return [{"name": f, "has_expense": f in linked} for f in files]
+
+
+@router.get("/scanned")
+def list_scanned(_user: CurrentUserDep, db: sqlite3.Connection = Depends(get_db)):
+    """Return all scanned receipt images (archive + tmp) with linked expense data."""
+    expense_rows = db.execute(f"{EXPENSE_SELECT} WHERE e.receipt_paths IS NOT NULL").fetchall()
+    # Index every path (not just the primary) so secondary images resolve correctly
+    expense_by_path: dict = {}
+    for row in expense_rows:
+        exp = row_to_expense(row)
+        for path in exp["receipt_paths"]:
+            expense_by_path[path] = exp
+
+    result = []
+    for location, directory in [("archive", ARCHIVE_DIR), ("tmp", TMP_DIR)]:
+        if not directory.exists():
+            continue
+        for f in sorted(directory.iterdir()):
+            if not f.is_file():
+                continue
+            rel_path = f"receipts/{location}/{f.name}"
+            expense = expense_by_path.get(rel_path)
+            # Derive month from expense date or filename prefix (YYYYMMDD_...)
+            if expense:
+                month = expense["date"][:7]
+            elif len(f.name) >= 8 and f.name[:8].isdigit():
+                month = f"{f.name[:4]}-{f.name[4:6]}"
+            else:
+                month = "unknown"
+            result.append({
+                "filename": f.name,
+                "path": rel_path,
+                "location": location,
+                "expense": expense,
+                "month": month,
+            })
+    return result
+
+
+@router.post("/scanned/upload", status_code=201)
+async def upload_orphaned_image(_user: CurrentUserDep, photo: UploadFile = File(...)):
+    """Save an uploaded image directly to archive as an orphaned image."""
+    image_data = await photo.read()
+    ext = Path(photo.filename or "image.jpg").suffix.lower() or ".jpg"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+    archive_path = ARCHIVE_DIR / f"{timestamp}{ext}"
+    counter = 2
+    while archive_path.exists():
+        archive_path = ARCHIVE_DIR / f"{timestamp}_{counter}{ext}"
+        counter += 1
+    archive_path.write_bytes(image_data)
+    return {"path": f"receipts/archive/{archive_path.name}", "filename": archive_path.name}
+
+
+@router.delete("/scanned/orphaned", status_code=200)
+def delete_orphaned_images(_user: SuperuserDep, db: sqlite3.Connection = Depends(get_db)):
+    """Delete all scanned images not attached to any expense."""
+    all_rows = db.execute("SELECT receipt_paths, receipt_photo_path FROM expenses").fetchall()
+    linked_paths = set()
+    for row in all_rows:
+        if row["receipt_paths"]:
+            linked_paths.update(json.loads(row["receipt_paths"]))
+        elif row["receipt_photo_path"]:
+            linked_paths.add(row["receipt_photo_path"])
+    deleted = []
+    for location, directory in [("archive", ARCHIVE_DIR), ("tmp", TMP_DIR)]:
+        if not directory.exists():
+            continue
+        for f in directory.iterdir():
+            if not f.is_file():
+                continue
+            rel_path = f"receipts/{location}/{f.name}"
+            if rel_path not in linked_paths:
+                f.unlink()
+                deleted.append(rel_path)
+    return {"deleted": deleted, "count": len(deleted)}
 
 
 @router.post("/categorize", response_model=CategorizeResponse)
@@ -396,12 +510,97 @@ def update_expense(
         updates["items"] = json.dumps(
             [item if isinstance(item, dict) else item.model_dump() for item in updates["items"]]
         )
+
+    if "receipt_paths" in updates:
+        paths = updates["receipt_paths"] or []
+        _reassign_paths(paths, expense_id, db)
+        primary = paths[0] if paths else None
+        updates["receipt_paths"] = json.dumps(paths)
+        updates["receipt_photo_path"] = primary
+
     if updates:
         set_clause = ", ".join(f"{k} = ?" for k in updates)
         values = list(updates.values()) + [expense_id]
         db.execute(f"UPDATE expenses SET {set_clause} WHERE id = ?", values)
         db.commit()
 
+    row = db.execute(f"{EXPENSE_SELECT} WHERE e.id = ?", (expense_id,)).fetchone()
+    return row_to_expense(row)
+
+
+class ExpenseImagesBody(BaseModel):
+    paths: list[str]
+
+    class Config:
+        extra = "forbid"
+
+
+@router.post("/{expense_id}/images/scan", response_model=ExpenseResponse)
+async def scan_and_attach_image(
+    expense_id: int,
+    current: CurrentUserDep,
+    photo: UploadFile = File(...),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Upload an image, archive it named after the expense's first image, and attach it."""
+    row = db.execute(f"{EXPENSE_SELECT} WHERE e.id = ?", (expense_id,)).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Expense not found")
+
+    expense = row_to_expense(row)
+    image_data = await photo.read()
+    ext = Path(photo.filename or "receipt.jpg").suffix.lower() or ".jpg"
+
+    existing_paths = expense["receipt_paths"]
+    if existing_paths:
+        base_name = Path(existing_paths[0]).stem  # e.g. "20260411_eating_out_nordcenter_craig_2"
+    else:
+        date_str = expense["date"].replace("-", "")
+        cat_slug = _slugify(expense["category"])
+        merchant_slug = _slugify(expense["merchant"] or expense["category"])
+        user_slug = _slugify(current.username)
+        base_name = f"{date_str}_{cat_slug}_{merchant_slug}_{user_slug}"
+
+    ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+    archive_path = ARCHIVE_DIR / f"{base_name}{ext}"
+    counter = 2
+    while archive_path.exists():
+        archive_path = ARCHIVE_DIR / f"{base_name}_{counter}{ext}"
+        counter += 1
+
+    archive_path.write_bytes(image_data)
+    new_rel_path = f"receipts/archive/{archive_path.name}"
+
+    new_paths = existing_paths + [new_rel_path]
+    db.execute(
+        "UPDATE expenses SET receipt_paths = ?, receipt_photo_path = ? WHERE id = ?",
+        (json.dumps(new_paths), new_paths[0], expense_id),
+    )
+    db.commit()
+
+    row = db.execute(f"{EXPENSE_SELECT} WHERE e.id = ?", (expense_id,)).fetchone()
+    return row_to_expense(row)
+
+
+@router.put("/{expense_id}/images", response_model=ExpenseResponse)
+def set_expense_images(
+    expense_id: int,
+    body: ExpenseImagesBody,
+    _user: CurrentUserDep,
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """Replace all image paths for an expense, cascading removal from any other expense."""
+    row = db.execute("SELECT id FROM expenses WHERE id = ?", (expense_id,)).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    paths = body.paths
+    _reassign_paths(paths, expense_id, db)
+    primary = paths[0] if paths else None
+    db.execute(
+        "UPDATE expenses SET receipt_paths = ?, receipt_photo_path = ? WHERE id = ?",
+        (json.dumps(paths), primary, expense_id),
+    )
+    db.commit()
     row = db.execute(f"{EXPENSE_SELECT} WHERE e.id = ?", (expense_id,)).fetchone()
     return row_to_expense(row)
 
@@ -430,12 +629,15 @@ def delete_expense(
     delete_archive: bool = Query(False),
     db: sqlite3.Connection = Depends(get_db),
 ):
-    row = db.execute("SELECT id, receipt_photo_path FROM expenses WHERE id = ?", (expense_id,)).fetchone()
+    row = db.execute("SELECT id, receipt_photo_path, receipt_paths FROM expenses WHERE id = ?", (expense_id,)).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail="Expense not found")
-    if delete_archive and row["receipt_photo_path"]:
-        archive_path = Path(__file__).parent.parent.parent / "data" / row["receipt_photo_path"]
-        archive_path.unlink(missing_ok=True)
+    if delete_archive:
+        paths = json.loads(row["receipt_paths"] or "[]") if row["receipt_paths"] else (
+            [row["receipt_photo_path"]] if row["receipt_photo_path"] else []
+        )
+        for path in paths:
+            (DATA_DIR / path).unlink(missing_ok=True)
     db.execute("DELETE FROM expenses WHERE id = ?", (expense_id,))
     db.commit()
     return Response(status_code=204)
