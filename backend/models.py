@@ -23,6 +23,7 @@ class ExpenseCreate(BaseModel):
     receipt_photo_path: Optional[str] = None
     receipt_paths: list[str] = []
     ai_extracted: bool = False
+    ai_cost: Optional[float] = None
     is_shared: bool = True
     shared_with: list[int] = []
     user_id: Optional[int] = Field(
@@ -62,6 +63,7 @@ class ExpenseResponse(BaseModel):
     receipt_photo_path: Optional[str]
     receipt_paths: list[str] = []
     ai_extracted: bool
+    ai_cost: Optional[float]
     created_at: str
     is_shared: bool
     shared_with: list[int]
@@ -77,6 +79,7 @@ class ReceiptScan(BaseModel):
     category: str
     receipt_path: Optional[str] = None
     model: Optional[str] = None
+    ai_cost: Optional[float] = None
 
 
 class CategorizeRequest(BaseModel):

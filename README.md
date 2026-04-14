@@ -4,10 +4,10 @@ AI-powered expense tracker with receipt scanning. Snap or upload a photo of your
 
 ## Features
 
-- **Receipt scanning** — On mobile: two buttons — **Scan** (opens camera) and **Upload** (opens photo library). On desktop: a single **Upload receipt** button. AI extracts line items, merchant, total, and category. Finnish/European receipts (DD.MM.YYYY dates, `kpl` quantity sub-lines, `ale`/`alennus` discounts) are handled correctly.
-- **Receipt archive** — The image is saved to `data/receipts/archive/` with a descriptive filename when the expense is confirmed. Cancelled scans are not archived.
+- **Receipt scanning** — On mobile: two buttons — **Scan** (opens camera) and **Upload** (opens photo library). On desktop: a single **Upload receipt** button. AI extracts line items, merchant, total, and category. Finnish/European receipts (DD.MM.YYYY dates, `kpl` quantity sub-lines, `ale`/`alennus` discounts) are handled correctly. Negative totals returned by the model (e.g. refunds) are automatically converted to positive.
+- **Receipt archive** — The image is saved to `data/receipts/archive/` with a descriptive filename when the expense is confirmed. Cancelling the scan review automatically deletes the temporary file.
 - **Multiple images per expense** — Each expense can have any number of receipt images. Images are managed in a grid in the edit form: tap × to remove, **+ Add** to pick from the scanned pool, or **📷 Scan** (mobile only) to capture and attach a new photo without running AI. Removing an image from an expense makes it orphaned (it is never deleted automatically).
-- **Scanned page** — Full-screen panel (menu → **Scanned**) showing every receipt image in the archive. Images are grouped into **Attached** (linked to an expense) and **Orphaned** (not linked), each sorted by month. Actions on each card: **Attach** / **Reassign** (pick any expense), **Detach** (move back to orphaned), or **Delete** (orphaned only). All changes update the UI in real time without a page refresh.
+- **Scanned page** — Full-screen panel (menu → **Scanned**) showing every receipt image in the archive. Images are grouped into **Attached** (linked to an expense) and **Orphaned** (not linked), each sorted newest first by expense date (attached) or scan date (orphaned). Actions on each card: **Attach** / **Reassign** (pick any expense), **Detach** (move back to orphaned), or **Delete** (orphaned only). All changes update the UI in real time without a page refresh.
 - **Upload / Scan on Scanned page** — A sticky header bar lets you add images directly to the orphaned pool. On mobile both **Upload** (file picker) and **Scan** (rear camera) are shown side-by-side; on desktop only **Upload** is shown.
 - **Manual entry** — Full form matching the scan review: date, merchant, category (dropdown), line items (name × qty × unit price), total, payment type, note.
 - **Shared & personal expenses** — Expenses are shared by default (split equally among sharing users). Any expense can instead be attributed to a specific user as a personal expense. When viewing shared expenses, each row shows the per-person share alongside the full total.
@@ -17,6 +17,7 @@ AI-powered expense tracker with receipt scanning. Snap or upload a photo of your
 - **All Expenses** — Full expense history across all users, grouped by month, with the same user/shared filters and "Your share" summary. Defaults to all time.
 - **Edit & delete** — Edit any field (including date and attribution); delete requires confirmation. Deleting an expense never removes its receipt images — they become orphaned and remain accessible on the Scanned page. Superuser only.
 - **Charts / Analytics** — Date-range overview (month / 3 months / year / all time) with spend by category (bar chart), top merchants, by-month table, filterable category list with multi-select and combined totals, and a searchable item drill-down. Categories, merchants, and months are clickable and open a drill-down list of matching expenses (each editable).
+- **AI Costs** — Dedicated page (menu → **AI Costs**) showing the total estimated OpenAI spend and a monthly breakdown. Each month shows the highest- and lowest-cost expense (clickable to open the full edit modal). Actual costs are recorded per scan; for historical expenses without a recorded cost the app assumes $0.004 (receipt with line items) or $0.002 (no items). Every expense card on the front page also shows its estimated AI cost.
 - **User management** — Superusers can create, edit (username, password, email, superuser flag), and delete users from a dedicated panel.
 - **Configurable** — Set your own payment methods and currency via `.env`.
 
@@ -24,7 +25,7 @@ AI-powered expense tracker with receipt scanning. Snap or upload a photo of your
 
 - **Backend:** Python 3.12, FastAPI, SQLite, Uvicorn
 - **Frontend:** Next.js (static export), React, Tailwind CSS
-- **AI:** OpenAI GPT-4o-mini (vision for receipts, text for categorization)
+- **AI:** OpenAI GPT-4o (vision for receipts, text for categorization). Model is configurable via `SNAP_SCAN_MODEL`.
 
 ---
 
@@ -82,7 +83,7 @@ SNAP_BOOTSTRAP_ADMIN_PASSWORD=your-strong-password
 SNAP_BOOTSTRAP_ADMIN_EMAIL=your@email.com
 ```
 
-**OpenAI API key:** [platform.openai.com](https://platform.openai.com) → API keys → create and paste into `.env`. Receipt scanning uses GPT-4o-mini (roughly $0.01–0.02 per scan). Restricted keys must have the `model.request` scope.
+**OpenAI API key:** [platform.openai.com](https://platform.openai.com) → API keys → create and paste into `.env`. Receipt scanning uses GPT-4o (roughly $0.01–0.05 per scan depending on receipt complexity). Restricted keys must have the `model.request` scope.
 
 **First admin:** When the `users` table is empty, the app creates the first superuser from `SNAP_BOOTSTRAP_ADMIN_USER` / `SNAP_BOOTSTRAP_ADMIN_PASSWORD` on startup. Sign in with those credentials, then create other users under **Users** (superuser only).
 
@@ -251,7 +252,7 @@ All settings live in `.env`:
 | `SNAP_BOOTSTRAP_ADMIN_EMAIL` | (unset) | Email for the bootstrap admin; also backfills the existing admin if email not yet set |
 | `SNAP_SESSION_MAX_AGE_SECONDS` | `1209600` (14 days) | Session cookie lifetime |
 | `SNAP_COOKIE_SECURE` | `0` | Set to `1` when running behind HTTPS |
-| `SNAP_SCAN_MODEL` | `gpt-4o-mini` | OpenAI model used for receipt scanning |
+| `SNAP_SCAN_MODEL` | `gpt-4o` | OpenAI model used for receipt scanning |
 
 ### Custom payment methods
 
@@ -281,7 +282,7 @@ Examples:
 - **`<merchant>`** — shop name extracted from the receipt
 - **`<username>`** — user who saved the expense
 - Filename collisions get a counter suffix (`_2`, `_3`, …)
-- If the scan is cancelled, the temporary file in `data/receipts/tmp/` can be deleted explicitly via the Scanned page or left to age out — it is never promoted to the archive
+- If the scan is cancelled, the temporary file in `data/receipts/tmp/` is deleted automatically. Any remaining tmp files can be deleted via the Scanned page.
 
 The relative paths (`receipts/archive/<filename>`) are stored in the `receipt_paths` JSON array on the expense record. `receipt_photo_path` is kept for backwards compatibility and always mirrors the first element of `receipt_paths`. Images are shown as a grid in the edit modal and on the Scanned page.
 
@@ -325,8 +326,9 @@ Expense and user routes expect a **session cookie** from `POST /api/auth/login` 
 | GET | `/api/expenses/cards` | Payment methods |
 | GET | `/api/expenses/archive` | Archive file list with expense-link flags |
 | GET | `/api/expenses/scanned` | All archive images with attached-expense info, grouped for the Scanned page |
+| GET | `/api/expenses/ai-costs` | Total and monthly AI cost breakdown with highest/lowest expense per month |
 | POST | `/api/expenses/` | Create; moves staged receipt to archive if present |
-| POST | `/api/expenses/scan` | `multipart/form-data`, field `photo`; stages image, returns AI data + `receipt_path` |
+| POST | `/api/expenses/scan` | `multipart/form-data`, field `photo`; stages image, returns AI data + `receipt_path` + `ai_cost` |
 | POST | `/api/expenses/scanned/upload` | `multipart/form-data`, field `photo`; saves to archive as an orphaned image (no AI) |
 | POST | `/api/expenses/categorize` | Auto-categorize text |
 | GET | `/api/config` | App config (e.g. `scan_model`) |
@@ -358,6 +360,7 @@ snap-expenses/
     app/page.tsx
     app/icon.svg              # favicon
     components/PhotoCapture.tsx
+    components/Toast.tsx
     lib/api.ts
     lib/dates.ts
     next.config.ts            # static export → out/

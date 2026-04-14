@@ -64,6 +64,7 @@ export interface Expense {
   receipt_photo_path: string | null;
   receipt_paths: string[];
   ai_extracted: boolean;
+  ai_cost: number | null;
   created_at: string;
   is_shared: boolean;
   shared_with: number[];
@@ -82,6 +83,8 @@ export interface ExpenseCreate {
   note?: string;
   receipt_photo_path?: string;
   receipt_paths?: string[];
+  ai_extracted?: boolean;
+  ai_cost?: number | null;
   is_shared?: boolean;
   shared_with?: number[];
   user_id?: number;
@@ -96,6 +99,19 @@ export interface ExpenseSummary {
   by_card: Record<string, number>;
 }
 
+export interface AiCostMonth {
+  month: string;
+  total: number;
+  count: number;
+  highest: Expense & { effective_ai_cost: number };
+  lowest: Expense & { effective_ai_cost: number };
+}
+
+export interface AiCostsData {
+  total: number;
+  months: AiCostMonth[];
+}
+
 export interface ReceiptScanResult {
   merchant: string | null;
   date: string | null;
@@ -104,6 +120,7 @@ export interface ReceiptScanResult {
   category: string;
   receipt_path: string | null;
   model: string | null;
+  ai_cost: number | null;
 }
 
 export interface ScannedImage {
@@ -263,6 +280,8 @@ export const api = {
     if (dateTo) params.set("date_to", dateTo);
     return request<AnalyticsData>(`/expenses/analytics?${params}`);
   },
+
+  aiCosts: () => request<AiCostsData>("/expenses/ai-costs"),
 
   scanned: () => request<ScannedImage[]>("/expenses/scanned"),
 

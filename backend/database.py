@@ -71,6 +71,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
     ucols = [r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()]
     if "email" not in ucols:
         conn.execute("ALTER TABLE users ADD COLUMN email TEXT")
+    if "ai_cost" not in cols:
+        conn.execute("ALTER TABLE expenses ADD COLUMN ai_cost REAL")
     if "receipt_paths" not in cols:
         conn.execute("ALTER TABLE expenses ADD COLUMN receipt_paths TEXT")
         rows = conn.execute("SELECT id, receipt_photo_path FROM expenses WHERE receipt_photo_path IS NOT NULL").fetchall()

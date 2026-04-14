@@ -43,7 +43,7 @@ def _openai_error_detail(exc: BaseException) -> str:
     return text or "OpenAI request failed."
 
 CURRENCY = os.getenv("SNAP_CURRENCY", "EUR")
-SCAN_MODEL = os.getenv("SNAP_SCAN_MODEL", "gpt-4o-mini")
+SCAN_MODEL = os.getenv("SNAP_SCAN_MODEL", "gpt-4o")
 
 # Formats GPT-4o-mini vision API accepts
 _SUPPORTED_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
@@ -95,7 +95,9 @@ def scan_receipt(image_data: bytes, media_type: str) -> dict:
         "use those values as qty and unit_price, and the item line price as amount. "
         "A line starting with '-' or marked 'ale'/'alennus' below an item is a discount — "
         "subtract it from that item's amount (do not create a separate item for discounts). "
-        "No markdown, just JSON."
+        "No markdown, just JSON. "
+        "If the image is not a receipt, is unreadable, or data cannot be extracted, "
+        "still return the JSON object with null for merchant/date/total, empty array for items, and category as 'Other'."
     )
 
     b64 = base64.standard_b64encode(image_data).decode("utf-8")
@@ -112,7 +114,7 @@ def scan_receipt(image_data: bytes, media_type: str) -> dict:
                     {"type": "text", "text": prompt},
                 ],
             }],
-            max_tokens=512,
+            max_tokens=2048,
         )
     except Exception as e:
         logger.exception("OpenAI API call failed for receipt scan")
@@ -125,13 +127,23 @@ def scan_receipt(image_data: bytes, media_type: str) -> dict:
             raw = raw[:-3]
         raw = raw.strip()
 
+    usage = response.usage
+    input_cost = (usage.prompt_tokens / 1_000_000) * 2.50
+    output_cost = (usage.completion_tokens / 1_000_000) * 10.00
+    ai_cost = round(input_cost + output_cost, 6)
+    logger.info(
+        "Receipt scan: model=%s tokens=%d+%d cost=$%.6f",
+        SCAN_MODEL, usage.prompt_tokens, usage.completion_tokens, ai_cost,
+    )
+
     try:
         result = json.loads(raw)
         result["model"] = SCAN_MODEL
+        result["ai_cost"] = ai_cost
         return result
     except json.JSONDecodeError:
         logger.error("GPT returned non-JSON for receipt scan: %s", raw[:200])
-        raise ValueError("Could not parse receipt - AI returned unexpected format")
+        raise ValueError(f"Could not parse receipt: {raw[:300]}")
 
 
 def categorize_expense(description: str) -> str:

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useToast, ToastProvider } from "@/components/Toast";
 import { todayISO } from "@/lib/dates";
-import { api, AnalyticsData, Expense, ExpenseCreate, ReceiptScanResult, ScannedImage, User } from "@/lib/api";
+import { api, AiCostsData, AnalyticsData, Expense, ExpenseCreate, ReceiptScanResult, ScannedImage, User } from "@/lib/api";
 import PhotoCapture from "@/components/PhotoCapture";
 import Modal from "@/components/Modal";
 
@@ -336,6 +336,7 @@ function HeaderMenu({
   onPersonal,
   onAllExpenses,
   onScanned,
+  onAiCosts,
   onUsers,
   onLogout,
 }: {
@@ -346,6 +347,7 @@ function HeaderMenu({
   onPersonal: () => void;
   onAllExpenses: () => void;
   onScanned: () => void;
+  onAiCosts: () => void;
   onUsers: () => void;
   onLogout: () => void;
 }) {
@@ -392,6 +394,7 @@ function HeaderMenu({
           {item("Personal", onPersonal)}
           {item("All Expenses", onAllExpenses)}
           {item("Scanned", onScanned)}
+          {item("AI Costs", onAiCosts)}
           {isSuperuser && item("Users", onUsers)}
           <div className="border-t border-snap-100" />
           {item("Log out", onLogout, true)}
@@ -433,6 +436,7 @@ function ExpensesPage({
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [copyExpensePrefill, setCopyExpensePrefill] = useState<Expense | null>(null);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showAiCosts, setShowAiCosts] = useState(false);
   const [preset, setPreset] = useState("month");
   const [scanModel, setScanModel] = useState("AI");
 
@@ -502,7 +506,8 @@ function ExpensesPage({
         setStep(3, "Couldn't extract merchant or total");
         await delay(1200);
         toast(
-          `Could not read receipt (merchant: ${m}, total: ${t}). Try a clearer photo or enter manually.`
+          `Could not read receipt (merchant: ${m}, total: ${t}). Try a clearer photo or enter manually.`,
+          "error"
         );
         return;
       }
@@ -518,7 +523,7 @@ function ExpensesPage({
           : "Failed to scan receipt. Try again or enter manually.";
       setStep(3, "Scan failed");
       await delay(400);
-      toast(msg);
+      toast(msg, "error");
     } finally {
       setScanPhase(null);
       setScanStepIndex(0);
@@ -581,7 +586,8 @@ function ExpensesPage({
       {showAnalytics && <AnalyticsPanel onClose={() => setShowAnalytics(false)} cards={cards} currentUser={user} allUsers={allUsers} />}
       {showPersonal && <PersonalPanel onClose={() => setShowPersonal(false)} cards={cards} currentUser={user} allUsers={allUsers} />}
       {showAllExpenses && <AllExpensesPanel onClose={() => setShowAllExpenses(false)} cards={cards} currentUser={user} allUsers={allUsers} />}
-      {showScanned && <ScannedPanel onClose={() => setShowScanned(false)} />}
+      {showScanned && <ScannedPanel onClose={() => setShowScanned(false)} cards={cards} currentUser={user} allUsers={allUsers} />}
+      {showAiCosts && <AiCostsPanel onClose={() => setShowAiCosts(false)} cards={cards} currentUser={user} allUsers={allUsers} />}
       <div className="p-4 space-y-3 max-w-lg mx-auto">
       <div className="sticky top-0 z-40 bg-snap-50/90 backdrop-blur-sm -mx-4 px-4 -mt-4 mb-2">
         <div className="py-3 flex items-center justify-between gap-2">
@@ -594,6 +600,7 @@ function ExpensesPage({
           onPersonal={() => setShowPersonal(true)}
           onAllExpenses={() => setShowAllExpenses(true)}
           onScanned={() => setShowScanned(true)}
+          onAiCosts={() => setShowAiCosts(true)}
           onUsers={() => { refreshUsers(); setShowAdmin(true); }}
           onLogout={() => void onLogout()}
         />
@@ -701,8 +708,13 @@ function ExpensesPage({
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-snap-800 truncate">
-                        {exp.merchant || exp.category}
+                      <p className="text-sm font-semibold text-snap-800 truncate flex items-center gap-1">
+                        <span className="truncate">{exp.merchant || exp.category}</span>
+                        {exp.receipt_paths.length > 0 && (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 shrink-0 text-snap-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                          </svg>
+                        )}
                       </p>
                       <div className="flex gap-2 mt-0.5 flex-wrap">
                         <span className="text-[10px] text-skin-secondary capitalize">{exp.category}</span>
@@ -714,6 +726,7 @@ function ExpensesPage({
                       </div>
                       {exp.note && <p className="text-[11px] text-skin-secondary mt-0.5 truncate">{exp.note}</p>}
                       <p className="text-[10px] text-skin-secondary mt-0.5">{exp.date}</p>
+                      <p className="text-[10px] text-skin-secondary">estimated AI cost: ${(exp.ai_cost ?? (exp.items.length > 0 ? 0.004 : 0.002)).toFixed(4)}</p>
                     </div>
                     <div className="flex flex-col items-end justify-between self-stretch ml-2">
                       <div className="flex items-center gap-2">
@@ -775,13 +788,23 @@ function ExpensesPage({
       </div>
 
       {/* Receipt Review Modal */}
-      <Modal open={showReview} onClose={() => { setShowReview(false); setScanResult(null); }} title="Review Receipt">
+      <Modal open={showReview} onClose={() => {
+        if (scanResult?.receipt_path?.startsWith("receipts/tmp/")) {
+          api.deleteTmpFile(scanResult.receipt_path.split("/").pop()!).catch(() => {});
+        }
+        setShowReview(false); setScanResult(null);
+      }} title="Review Receipt">
         {scanResult && (
           <ReceiptReviewForm
             cards={cards}
             scanResult={scanResult}
             onSubmit={handleSaveFromReview}
-            onCancel={() => { setShowReview(false); setScanResult(null); }}
+            onCancel={() => {
+              if (scanResult?.receipt_path?.startsWith("receipts/tmp/")) {
+                api.deleteTmpFile(scanResult.receipt_path.split("/").pop()!).catch(() => {});
+              }
+              setShowReview(false); setScanResult(null);
+            }}
             currentUser={user}
             allUsers={allUsers}
           />
@@ -855,7 +878,7 @@ function ReceiptReviewForm({
   const today = todayISO();
   const [date, setDate] = useState(scanResult.date || today);
   const [merchant, setMerchant] = useState(scanResult.merchant || "");
-  const [total, setTotal] = useState(scanResult.total?.toString() || "");
+  const [total, setTotal] = useState(scanResult.total != null ? Math.abs(scanResult.total).toString() : "");
   const [category, setCategory] = useState(scanResult.category || "Other");
   const [card, setCard] = useState(cards[0]);
   const [note, setNote] = useState("");
@@ -882,6 +905,8 @@ function ReceiptReviewForm({
         card,
         note: note || undefined,
         receipt_photo_path: scanResult.receipt_path || undefined,
+        ai_extracted: true,
+        ai_cost: scanResult.ai_cost ?? undefined,
         is_shared: isShared,
         shared_with: isShared ? sharedWith : undefined,
       };
@@ -923,7 +948,7 @@ function ReceiptReviewForm({
         <input type="text" value={merchant} onChange={(e) => setMerchant(e.target.value)} placeholder="Shop name" className="form-input" />
       </FormField>
       <FormField label="Total">
-        <input type="number" step="0.01" value={total} onChange={(e) => setTotal(e.target.value)} placeholder="Amount" required className="form-input" />
+        <input type="number" step="0.01" value={total} onChange={(e) => { const v = parseFloat(e.target.value); setTotal(isNaN(v) ? e.target.value : Math.abs(v).toString()); }} placeholder="Amount" required className="form-input" />
       </FormField>
       <FormField label="Category">
         <select value={category} onChange={(e) => setCategory(e.target.value)} className="form-input">
@@ -1108,7 +1133,7 @@ function ManualEntryForm({
         )}
       </div>
       <FormField label="Total">
-        <input type="number" step="0.01" value={total} onChange={(e) => setTotal(e.target.value)} placeholder="Amount (EUR)" required className="form-input" />
+        <input type="number" step="0.01" value={total} onChange={(e) => { const v = parseFloat(e.target.value); setTotal(isNaN(v) ? e.target.value : Math.abs(v).toString()); }} placeholder="Amount (EUR)" required className="form-input" />
       </FormField>
       <FormField label="Payment Type">
         <select value={card} onChange={(e) => setCard(e.target.value)} className="form-input">
@@ -1360,7 +1385,7 @@ function EditExpenseForm({
         </div>
       )}
       <FormField label="Total">
-        <input type="number" step="0.01" value={total} onChange={(e) => setTotal(e.target.value)} placeholder="Amount" required className="form-input" />
+        <input type="number" step="0.01" value={total} onChange={(e) => { const v = parseFloat(e.target.value); setTotal(isNaN(v) ? e.target.value : Math.abs(v).toString()); }} placeholder="Amount" required className="form-input" />
       </FormField>
       <FormField label="Category">
         <select value={category} onChange={(e) => setCategory(e.target.value)} className="form-input">
@@ -2656,11 +2681,121 @@ function AnalyticsPanel({ onClose, cards, currentUser, allUsers }: {
   );
 }
 
-function ScannedPanel({ onClose }: { onClose: () => void }) {
+function AiCostsPanel({ onClose, cards, currentUser, allUsers }: {
+  onClose: () => void;
+  cards: string[];
+  currentUser: User;
+  allUsers: User[];
+}) {
+  const [data, setData] = useState<AiCostsData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+
+  const load = () => {
+    setLoading(true);
+    api.aiCosts()
+      .then(setData)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleEditSave = async (data: ExpenseCreate) => {
+    if (!editingExpense) return;
+    await api.update(editingExpense.id, data);
+    setEditingExpense(null);
+    load();
+  };
+
+  const handleDelete = async (id: number) => {
+    await api.delete(id, false);
+    setEditingExpense(null);
+    load();
+  };
+
+  const formatMonth = (ym: string) => {
+    if (ym === "unknown") return "Unknown";
+    const [y, m] = ym.split("-");
+    return new Date(parseInt(y), parseInt(m) - 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  };
+
+  const MiniExpenseCard = ({ exp, label }: { exp: Expense & { effective_ai_cost: number }; label: string }) => (
+    <button
+      type="button"
+      onClick={() => setEditingExpense(exp)}
+      className="flex-1 rounded-xl border border-snap-200 bg-white p-2.5 space-y-0.5 min-w-0 text-left hover:border-snap-400 transition-colors"
+    >
+      <p className="text-[10px] font-bold text-snap-500 uppercase tracking-wide">{label}</p>
+      <p className="text-xs font-semibold text-snap-800 truncate">{exp.merchant || exp.category}</p>
+      <p className="text-[10px] text-skin-secondary">{exp.date}</p>
+      <p className="text-[10px] font-mono text-snap-700">${exp.effective_ai_cost.toFixed(4)}</p>
+    </button>
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 bg-snap-50 overflow-y-auto">
+      <div className="sticky top-0 z-10 bg-snap-50/90 backdrop-blur-sm border-b border-snap-100">
+        <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
+          <button type="button" onClick={onClose} className="text-sm font-semibold text-snap-600">← Back</button>
+          <h1 className="text-base font-bold text-snap-800 flex-1">AI Costs</h1>
+        </div>
+      </div>
+
+      <div className="max-w-lg mx-auto px-4 py-4 space-y-5">
+        {loading && <p className="text-center text-sm text-skin-secondary py-8">Loading…</p>}
+
+        {data && (
+          <>
+            <div className="rounded-2xl bg-white border border-snap-200 px-4 py-3">
+              <p className="text-xs text-skin-secondary">Total estimated AI cost</p>
+              <p className="text-2xl font-bold text-snap-800 mt-0.5">${data.total.toFixed(4)}</p>
+            </div>
+
+            {data.months.map(m => (
+              <div key={m.month} className="space-y-2">
+                <div className="flex items-baseline gap-2">
+                  <h2 className="text-sm font-bold text-snap-800">{formatMonth(m.month)}</h2>
+                  <span className="text-xs text-skin-secondary">{m.count} expenses · ${m.total.toFixed(4)}</span>
+                </div>
+                <div className="flex gap-2">
+                  <MiniExpenseCard exp={m.highest} label="Highest" />
+                  {m.lowest.id !== m.highest.id && <MiniExpenseCard exp={m.lowest} label="Lowest" />}
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+
+      <Modal open={!!editingExpense} onClose={() => setEditingExpense(null)} title="Edit Expense">
+        {editingExpense && (
+          <EditExpenseForm
+            cards={cards}
+            expense={editingExpense}
+            onSubmit={handleEditSave}
+            onCancel={() => setEditingExpense(null)}
+            onDelete={() => handleDelete(editingExpense.id)}
+            currentUser={currentUser}
+            allUsers={allUsers}
+          />
+        )}
+      </Modal>
+    </div>
+  );
+}
+
+function ScannedPanel({ onClose, cards, currentUser, allUsers }: {
+  onClose: () => void;
+  cards: string[];
+  currentUser: User;
+  allUsers: User[];
+}) {
   const [images, setImages] = useState<ScannedImage[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [deletingPath, setDeletingPath] = useState<string | null>(null);
   const [attachingImage, setAttachingImage] = useState<ScannedImage | null>(null);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [uploading, setUploading] = useState(false);
   const uploadRef = useRef<HTMLInputElement>(null);
   const scanRef = useRef<HTMLInputElement>(null);
@@ -2751,14 +2886,29 @@ function ScannedPanel({ onClose }: { onClose: () => void }) {
     }
   };
 
+  const handleEditSave = async (data: ExpenseCreate) => {
+    if (!editingExpense) return;
+    await api.update(editingExpense.id, data);
+    setEditingExpense(null);
+    load();
+  };
+
+  const handleDelete = async (id: number) => {
+    await api.delete(id, false);
+    setEditingExpense(null);
+    load();
+  };
+
   const formatMonthHeader = (ym: string) => {
     if (ym === "unknown") return "Unknown date";
     const [year, month] = ym.split("-");
     return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
   };
 
-  const attached = (images ?? []).filter(i => i.expense !== null);
-  const orphaned = (images ?? []).filter(i => i.expense === null);
+  const attached = (images ?? []).filter(i => i.expense !== null)
+    .sort((a, b) => (b.expense!.date ?? "").localeCompare(a.expense!.date ?? ""));
+  const orphaned = (images ?? []).filter(i => i.expense === null)
+    .sort((a, b) => b.filename.localeCompare(a.filename));
 
   const groupByMonth = (imgs: ScannedImage[]) =>
     imgs.reduce<Record<string, ScannedImage[]>>((acc, img) => {
@@ -2780,10 +2930,14 @@ function ScannedPanel({ onClose }: { onClose: () => void }) {
       </a>
       <div className="px-2 py-1.5 space-y-1">
         {img.expense ? (
-          <div>
-            <p className="text-[11px] font-semibold text-snap-800 truncate">{img.expense.merchant || img.expense.category}</p>
-            <p className="text-[10px] text-skin-secondary">{img.expense.date} · {img.expense.total.toFixed(2)} {img.expense.currency}</p>
-          </div>
+          <button
+            type="button"
+            onClick={() => setEditingExpense(img.expense)}
+            className="w-full text-left px-2 py-1 rounded-lg bg-gray-500 hover:bg-gray-600 active:bg-gray-700 transition-colors"
+          >
+            <p className="text-[11px] font-semibold text-white truncate">{img.expense.merchant || img.expense.category}</p>
+            <p className="text-[10px] text-gray-200">{img.expense.date} · {img.expense.total.toFixed(2)} {img.expense.currency}</p>
+          </button>
         ) : (
           <p className="text-[10px] text-skin-secondary italic">Orphaned</p>
         )}
@@ -2848,6 +3002,19 @@ function ScannedPanel({ onClose }: { onClose: () => void }) {
           onClose={() => setAttachingImage(null)}
         />
       )}
+      <Modal open={!!editingExpense} onClose={() => setEditingExpense(null)} title="Edit Expense">
+        {editingExpense && (
+          <EditExpenseForm
+            cards={cards}
+            expense={editingExpense}
+            onSubmit={handleEditSave}
+            onCancel={() => setEditingExpense(null)}
+            onDelete={() => handleDelete(editingExpense.id)}
+            currentUser={currentUser}
+            allUsers={allUsers}
+          />
+        )}
+      </Modal>
       <div className="fixed inset-0 z-50 bg-snap-50 overflow-y-auto">
         <div className="sticky top-0 z-10 bg-snap-50/90 backdrop-blur-sm border-b border-snap-100">
           <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">

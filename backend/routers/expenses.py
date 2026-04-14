@@ -238,8 +238,8 @@ def create_expense(
     items_json = json.dumps([item.model_dump() for item in expense.items])
     shared_with_json = json.dumps(expense.shared_with) if expense.is_shared else None
     cursor = db.execute(
-        "INSERT INTO expenses (date, merchant, items, total, currency, category, card, note, receipt_photo_path, receipt_paths, ai_extracted, user_id, is_shared, shared_with) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO expenses (date, merchant, items, total, currency, category, card, note, receipt_photo_path, receipt_paths, ai_extracted, ai_cost, user_id, is_shared, shared_with) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             expense.date,
             expense.merchant,
@@ -252,6 +252,7 @@ def create_expense(
             primary,
             receipt_paths_json,
             int(expense.ai_extracted),
+            expense.ai_cost,
             uid,
             1 if expense.is_shared else 0,
             shared_with_json,
@@ -391,6 +392,38 @@ def delete_orphaned_images(_user: SuperuserDep, db: sqlite3.Connection = Depends
                 f.unlink()
                 deleted.append(rel_path)
     return {"deleted": deleted, "count": len(deleted)}
+
+
+@router.get("/ai-costs")
+def ai_costs(_user: CurrentUserDep, db: sqlite3.Connection = Depends(get_db)):
+    """Return total and monthly AI cost breakdown with highest/lowest expense per month."""
+    rows = db.execute(f"{EXPENSE_SELECT}").fetchall()
+    expenses = [row_to_expense(r) for r in rows]
+
+    def effective_cost(exp: dict) -> float:
+        if exp.get("ai_cost") is not None:
+            return exp["ai_cost"]
+        return 0.004 if exp.get("items") else 0.002
+
+    # Group by month
+    months: dict[str, dict] = {}
+    for exp in expenses:
+        month = exp["date"][:7] if exp.get("date") else "unknown"
+        cost = effective_cost(exp)
+        if month not in months:
+            months[month] = {"month": month, "total": 0.0, "count": 0, "highest": None, "lowest": None}
+        m = months[month]
+        m["total"] = round(m["total"] + cost, 6)
+        m["count"] += 1
+        exp_with_cost = {**exp, "effective_ai_cost": cost}
+        if m["highest"] is None or cost > m["highest"]["effective_ai_cost"]:
+            m["highest"] = exp_with_cost
+        if m["lowest"] is None or cost < m["lowest"]["effective_ai_cost"]:
+            m["lowest"] = exp_with_cost
+
+    sorted_months = sorted(months.values(), key=lambda x: x["month"], reverse=True)
+    total = round(sum(m["total"] for m in sorted_months), 6)
+    return {"total": total, "months": sorted_months}
 
 
 @router.post("/categorize", response_model=CategorizeResponse)
