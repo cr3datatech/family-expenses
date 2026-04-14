@@ -54,6 +54,7 @@ npm run build
 cd ..
 
 cp .env.example .env  # skip if .env already exists and is configured
+# Edit .env: set OPENAI_API_KEY and SNAP_BOOTSTRAP_ADMIN_* before starting
 chmod +x run.sh
 ./run.sh
 ```
