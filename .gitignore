@@ -15,3 +15,6 @@ frontend/tsconfig.tsbuildinfo
 
 # OS
 .DS_Store
+
+# Scripts
+update.sh
