@@ -101,6 +101,7 @@ export interface ReceiptScanResult {
   total: number;
   category: string;
   receipt_path: string | null;
+  model: string | null;
 }
 
 export interface AnalyticsData {
@@ -240,6 +241,8 @@ export const api = {
     }),
 
   search: (q: string) => request<Expense[]>(`/expenses/search?q=${encodeURIComponent(q)}`),
+
+  config: () => request<{ scan_model: string }>("/config"),
 
   analytics: (dateFrom?: string, dateTo?: string) => {
     const params = new URLSearchParams();

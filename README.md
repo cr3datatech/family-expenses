@@ -248,6 +248,7 @@ All settings live in `.env`:
 | `SNAP_BOOTSTRAP_ADMIN_EMAIL` | (unset) | Email for the bootstrap admin; also backfills the existing admin if email not yet set |
 | `SNAP_SESSION_MAX_AGE_SECONDS` | `1209600` (14 days) | Session cookie lifetime |
 | `SNAP_COOKIE_SECURE` | `0` | Set to `1` when running behind HTTPS |
+| `SNAP_SCAN_MODEL` | `gpt-4o-mini` | OpenAI model used for receipt scanning |
 
 ### Custom payment methods
 
@@ -323,6 +324,7 @@ Expense and user routes expect a **session cookie** from `POST /api/auth/login` 
 | POST | `/api/expenses/` | Create; moves staged receipt to archive if present |
 | POST | `/api/expenses/scan` | `multipart/form-data`, field `photo`; stages image, returns AI data + `receipt_path` |
 | POST | `/api/expenses/categorize` | Auto-categorize text |
+| GET | `/api/config` | App config (e.g. `scan_model`) |
 | PUT | `/api/expenses/{id}` | Update (`user_id` for superuser) |
 | DELETE | `/api/expenses/{id}` | Delete; `?delete_archive=true` also removes the image |
 | DELETE | `/api/expenses/archive/{filename}` | Delete archive file; `?delete_expense=true` also removes the expense record |

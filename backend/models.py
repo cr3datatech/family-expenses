@@ -73,6 +73,7 @@ class ReceiptScan(BaseModel):
     total: float
     category: str
     receipt_path: Optional[str] = None
+    model: Optional[str] = None
 
 
 class CategorizeRequest(BaseModel):

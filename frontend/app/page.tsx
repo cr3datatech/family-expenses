@@ -427,8 +427,10 @@ function ExpensesPage({
   const [searchResults, setSearchResults] = useState<Expense[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [copyExpensePrefill, setCopyExpensePrefill] = useState<Expense | null>(null);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [preset, setPreset] = useState("month");
+  const [scanModel, setScanModel] = useState("AI");
 
   const refreshUsers = useCallback(() => {
     if (!user.is_superuser) return;
@@ -462,6 +464,7 @@ function ExpensesPage({
 
   useEffect(() => {
     api.cards().then(setCards).catch(() => {});
+    api.config().then(c => setScanModel(c.scan_model)).catch(() => {});
   }, []);
 
   const handlePhoto = async (file: File) => {
@@ -482,7 +485,7 @@ function ExpensesPage({
     await delay(40);
 
     try {
-      setStep(2, "Reading receipt with AI…");
+      setStep(2, `Reading receipt with AI (${scanModel})…`);
       const result = await api.scan(formData);
 
       const hasData = (result.merchant && result.merchant !== "null") || result.total > 0;
@@ -532,6 +535,7 @@ function ExpensesPage({
 
   const handleSaveManual = async (data: ExpenseCreate) => {
     setShowAdd(false);
+    setCopyExpensePrefill(null);
     try {
       await api.create(data);
       toast("Expense logged");
@@ -705,23 +709,39 @@ function ExpensesPage({
                       {exp.note && <p className="text-[11px] text-skin-secondary mt-0.5 truncate">{exp.note}</p>}
                       <p className="text-[10px] text-skin-secondary mt-0.5">{exp.date}</p>
                     </div>
-                    <div className="flex items-center gap-2 ml-2">
-                      <span className="text-sm font-bold text-snap-600 whitespace-nowrap">
-                        {exp.total.toFixed(2)} {exp.currency}
-                      </span>
-                      {user.is_superuser && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setConfirmDeleteId(confirmDeleteId === exp.id ? null : exp.id);
-                          }}
-                          className="text-skin-secondary text-lg leading-none px-1 -mr-1 rounded-lg hover:bg-snap-100"
-                          aria-label="Delete expense"
-                        >
-                          &times;
-                        </button>
-                      )}
+                    <div className="flex flex-col items-end justify-between self-stretch ml-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-snap-600 whitespace-nowrap">
+                          {exp.total.toFixed(2)} {exp.currency}
+                        </span>
+                        {user.is_superuser && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmDeleteId(confirmDeleteId === exp.id ? null : exp.id);
+                            }}
+                            className="text-skin-secondary text-lg leading-none px-1 -mr-1 rounded-lg hover:bg-snap-100"
+                            aria-label="Delete expense"
+                          >
+                            &times;
+                          </button>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCopyExpensePrefill(exp);
+                          setShowAdd(true);
+                        }}
+                        className="w-6 h-6 rounded-full bg-snap-100 text-snap-500 flex items-center justify-center hover:bg-snap-200 transition-colors"
+                        aria-label="Copy expense"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+                          <path d="M4 2a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1h1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h2zm0 1H2a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h2V4a2 2 0 0 1 2-2V3zm2-1a1 1 0 0 0-1 1v10h7V3a1 1 0 0 0-1-1H6z"/>
+                        </svg>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -770,8 +790,8 @@ function ExpensesPage({
       </Modal>
 
       {/* Manual Entry Modal */}
-      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Add Expense">
-        <ManualEntryForm cards={cards} onSubmit={handleSaveManual} currentUser={user} allUsers={allUsers} />
+      <Modal open={showAdd} onClose={() => { setShowAdd(false); setCopyExpensePrefill(null); }} title="Add Expense">
+        <ManualEntryForm key={copyExpensePrefill?.id ?? "new"} cards={cards} onSubmit={handleSaveManual} currentUser={user} allUsers={allUsers} prefill={copyExpensePrefill ?? undefined} />
       </Modal>
 
       {/* Edit Modal */}
@@ -843,7 +863,10 @@ function ReceiptReviewForm({
   const [saving, setSaving] = useState(false);
   const [isShared, setIsShared] = useState(true);
   const [attributedUserId, setAttributedUserId] = useState(currentUser.id);
-  const [sharedWith, setSharedWith] = useState<number[]>(allUsers.map(u => u.id));
+  const [sharedWith, setSharedWith] = useState<number[]>(() => {
+    const ids = allUsers.filter(u => ["christa", "craig"].includes(u.username.toLowerCase())).map(u => u.id);
+    return ids.length > 0 ? ids : allUsers.map(u => u.id);
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -949,25 +972,40 @@ interface ManualItem {
 }
 
 function ManualEntryForm({
-  cards, onSubmit, currentUser, allUsers,
+  cards, onSubmit, currentUser, allUsers, prefill,
 }: {
   cards: string[];
   onSubmit: (data: ExpenseCreate) => void;
   currentUser: User;
   allUsers: User[];
+  prefill?: Expense;
 }) {
   const today = todayISO();
-  const [date, setDate] = useState(today);
-  const [merchant, setMerchant] = useState("");
-  const [category, setCategory] = useState("Other");
-  const [items, setItems] = useState<ManualItem[]>([]);
-  const [total, setTotal] = useState("");
-  const [card, setCard] = useState(cards[0]);
-  const [note, setNote] = useState("");
+  const [date, setDate] = useState(prefill?.date ?? today);
+  const [merchant, setMerchant] = useState(prefill?.merchant ?? "");
+  const [category, setCategory] = useState(prefill?.category ?? "Other");
+  const [items, setItems] = useState<ManualItem[]>(
+    prefill?.items.map(i => ({
+      name: i.name,
+      qty: (i.qty ?? 1).toString(),
+      unit_price: i.unit_price?.toString() ?? "",
+      amount: i.amount.toString(),
+    })) ?? []
+  );
+  const [total, setTotal] = useState(prefill ? prefill.total.toFixed(2) : "");
+  const defaultCard = cards.includes("Payment") ? "Payment" : cards[0];
+  const defaultSharedWith = (() => {
+    const ids = allUsers
+      .filter(u => ["christa", "craig"].includes(u.username.toLowerCase()))
+      .map(u => u.id);
+    return ids.length > 0 ? ids : allUsers.map(u => u.id);
+  })();
+  const [card, setCard] = useState(prefill?.card ?? defaultCard);
+  const [note, setNote] = useState(prefill?.note ?? "");
   const [saving, setSaving] = useState(false);
-  const [isShared, setIsShared] = useState(true);
-  const [attributedUserId, setAttributedUserId] = useState(currentUser.id);
-  const [sharedWith, setSharedWith] = useState<number[]>(allUsers.map(u => u.id));
+  const [isShared, setIsShared] = useState(prefill?.is_shared ?? true);
+  const [attributedUserId, setAttributedUserId] = useState(prefill && !prefill.is_shared ? prefill.user_id : currentUser.id);
+  const [sharedWith, setSharedWith] = useState<number[]>(prefill?.shared_with ?? defaultSharedWith);
 
   const handleMerchantBlur = async () => {
     if (!merchant) return;
@@ -2487,33 +2525,67 @@ function AnalyticsPanel({ onClose, cards, currentUser, allUsers }: {
             {!drillLoading && drillExpenses && drillExpenses.length === 0 && (
               <p className="text-center text-sm text-skin-secondary py-8">No expenses found.</p>
             )}
-            {!drillLoading && drillExpenses && drillExpenses.map((exp) => (
-              <button
-                key={exp.id}
-                type="button"
-                onClick={() => setEditingExpense(exp)}
-                className="w-full text-left bg-white rounded-[14px] px-4 py-3 shadow-[0_1px_4px_rgba(34,197,94,0.08)] hover:bg-snap-50 transition-colors"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-snap-800 truncate">{exp.merchant || exp.category}</p>
-                    <p className="text-xs text-skin-secondary mt-0.5">{exp.date}{exp.card ? ` · ${exp.card}` : ""}</p>
-                    {exp.note && <p className="text-xs text-skin-secondary mt-0.5 italic">{exp.note}</p>}
+            {!drillLoading && drillExpenses && drillExpenses.length > 0 && (() => {
+              const drillGrouped = drillExpenses.reduce<Record<string, Expense[]>>((acc, exp) => {
+                const key = exp.date.substring(0, 7);
+                if (!acc[key]) acc[key] = [];
+                acc[key].push(exp);
+                return acc;
+              }, {});
+              const drillMonths = Object.keys(drillGrouped).sort((a, b) => b.localeCompare(a));
+              const multiMonth = drillMonths.length > 1;
+              const formatMonthHeader = (ym: string) => {
+                const [year, month] = ym.split("-");
+                return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+              };
+              const renderExpense = (exp: Expense) => (
+                <button
+                  key={exp.id}
+                  type="button"
+                  onClick={() => setEditingExpense(exp)}
+                  className="w-full text-left bg-white rounded-[14px] px-4 py-3 shadow-[0_1px_4px_rgba(34,197,94,0.08)] hover:bg-snap-50 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-snap-800 truncate">{exp.merchant || exp.category}</p>
+                      <p className="text-xs text-skin-secondary mt-0.5">{exp.date}{exp.card ? ` · ${exp.card}` : ""}</p>
+                      {exp.note && <p className="text-xs text-skin-secondary mt-0.5 italic">{exp.note}</p>}
+                    </div>
+                    <span className="text-sm font-mono font-bold text-snap-800 shrink-0">{exp.total.toFixed(2)}</span>
                   </div>
-                  <span className="text-sm font-mono font-bold text-snap-800 shrink-0">{exp.total.toFixed(2)}</span>
-                </div>
-                {exp.items.length > 0 && (
-                  <div className="mt-2 space-y-0.5">
-                    {exp.items.map((item, i) => (
-                      <div key={i} className="flex justify-between text-xs text-skin-secondary">
-                        <span className="truncate">{item.qty && item.qty !== 1 ? `${item.qty}× ` : ""}{item.name}</span>
-                        <span className="font-mono shrink-0 ml-2">{item.amount.toFixed(2)}</span>
+                  {exp.items.length > 0 && (
+                    <div className="mt-2 space-y-0.5">
+                      {exp.items.map((item, i) => (
+                        <div key={i} className="flex justify-between text-xs text-skin-secondary">
+                          <span className="truncate">{item.qty && item.qty !== 1 ? `${item.qty}× ` : ""}{item.name}</span>
+                          <span className="font-mono shrink-0 ml-2">{item.amount.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </button>
+              );
+              return (
+                <>
+                  <div className="bg-white rounded-[14px] px-4 py-3 shadow-[0_1px_4px_rgba(34,197,94,0.08)] flex justify-between items-center">
+                    <span className="text-sm font-semibold text-skin-secondary">Total</span>
+                    <span className="text-base font-bold text-snap-700">
+                      {drillExpenses.reduce((sum, e) => sum + e.total, 0).toFixed(2)}
+                    </span>
+                  </div>
+                  {multiMonth ? drillMonths.map(ym => (
+                    <div key={ym}>
+                      <div className="py-2">
+                        <p className="text-[11px] font-bold text-snap-600 uppercase tracking-wide">{formatMonthHeader(ym)}</p>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </button>
-            ))}
+                      <div className="space-y-2">
+                        {drillGrouped[ym].map(renderExpense)}
+                      </div>
+                    </div>
+                  )) : drillExpenses.map(renderExpense)}
+                </>
+              );
+            })()}
           </div>
         </div>
       )}

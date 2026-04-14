@@ -43,19 +43,31 @@ def _openai_error_detail(exc: BaseException) -> str:
     return text or "OpenAI request failed."
 
 CURRENCY = os.getenv("SNAP_CURRENCY", "EUR")
+SCAN_MODEL = os.getenv("SNAP_SCAN_MODEL", "gpt-4o-mini")
 
 # Formats GPT-4o-mini vision API accepts
 _SUPPORTED_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
 
 
+_MAX_EDGE = 1600  # max pixel dimension sent to vision API
+
+
 def _ensure_jpeg(image_data: bytes, media_type: str) -> tuple[bytes, str]:
-    """Convert unsupported image formats (HEIC, TIFF, BMP, etc.) to JPEG."""
-    if media_type in _SUPPORTED_TYPES:
-        return image_data, media_type
-    logger.info("Converting %s to JPEG for vision API", media_type)
+    """Convert to JPEG and resize so the long edge is at most _MAX_EDGE pixels."""
+    needs_convert = media_type not in _SUPPORTED_TYPES
     img = Image.open(io.BytesIO(image_data))
     if img.mode in ("RGBA", "P"):
         img = img.convert("RGB")
+
+    if max(img.size) > _MAX_EDGE:
+        img.thumbnail((_MAX_EDGE, _MAX_EDGE), Image.LANCZOS)
+        needs_convert = True  # must re-encode after resize
+
+    if not needs_convert:
+        return image_data, media_type
+
+    if needs_convert and media_type not in _SUPPORTED_TYPES:
+        logger.info("Converting %s to JPEG for vision API", media_type)
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=85)
     return buf.getvalue(), "image/jpeg"
@@ -89,7 +101,7 @@ def scan_receipt(image_data: bytes, media_type: str) -> dict:
     b64 = base64.standard_b64encode(image_data).decode("utf-8")
     try:
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=SCAN_MODEL,
             messages=[{
                 "role": "user",
                 "content": [
@@ -114,7 +126,9 @@ def scan_receipt(image_data: bytes, media_type: str) -> dict:
         raw = raw.strip()
 
     try:
-        return json.loads(raw)
+        result = json.loads(raw)
+        result["model"] = SCAN_MODEL
+        return result
     except json.JSONDecodeError:
         logger.error("GPT returned non-JSON for receipt scan: %s", raw[:200])
         raise ValueError("Could not parse receipt - AI returned unexpected format")

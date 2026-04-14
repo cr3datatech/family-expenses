@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from backend.database import init_db
 from backend.routers import auth, expenses, users
+from backend.services.ai import SCAN_MODEL
 
 
 @asynccontextmanager
@@ -32,6 +33,11 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(expenses.router)
+
+
+@app.get("/api/config")
+def get_config():
+    return {"scan_model": SCAN_MODEL}
 
 # Mount receipt archive so images are directly accessible
 receipts_dir = Path(__file__).parent.parent / "data" / "receipts"

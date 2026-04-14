@@ -1,5 +1,6 @@
 """Expense CRUD endpoints with receipt scanning."""
 
+import asyncio
 import json
 import os
 import re
@@ -238,7 +239,8 @@ async def scan_receipt_endpoint(_user: CurrentUserDep, photo: UploadFile = File(
     tmp_path.write_bytes(image_data)
 
     try:
-        result = scan_receipt(image_data, photo.content_type)
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, scan_receipt, image_data, photo.content_type)
     except (ValueError, Exception) as e:
         tmp_path.unlink(missing_ok=True)
         raise HTTPException(status_code=422, detail=str(e))
