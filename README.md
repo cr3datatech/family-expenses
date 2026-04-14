@@ -37,11 +37,34 @@ AI-powered expense tracker with receipt scanning. Snap or upload a photo of your
 - **Node.js and npm** — for building the frontend
 - **Git**
 
+### Quick start (copy/paste)
+
+Run these commands exactly from the repo root:
+
+```bash
+cd /absolute/path/to/family-expenses
+python3 -m venv venv
+source venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+
+cd frontend
+npm install
+npm run build
+cd ..
+
+cp .env.example .env  # skip if .env already exists and is configured
+chmod +x run.sh
+./run.sh
+```
+
+Open **[http://localhost:8090](http://localhost:8090)**.
+
 ### Step 1 — Clone the repo
 
 ```bash
 git clone <your-repository-url>
-cd snap-expenses
+cd family-expenses
 ```
 
 ### Step 2 — Python virtualenv and dependencies
@@ -49,8 +72,8 @@ cd snap-expenses
 ```bash
 python3 -m venv venv
 source venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
 
 On **Windows** (PowerShell): `venv\Scripts\activate` instead of `source venv/bin/activate`.
@@ -103,6 +126,36 @@ Open **[http://localhost:8090](http://localhost:8090)**.
 - If the UI is missing but the API works, confirm `frontend/out` exists (step 3).
 - API docs: **[http://localhost:8090/docs](http://localhost:8090/docs)**.
 - If port 8090 is in use, change the port in `run.sh`.
+
+### Common startup issue: `No module named uvicorn`
+
+This means the virtualenv exists, but dependencies were not installed into that same environment.
+
+From repo root, run:
+
+```bash
+source venv/bin/activate
+python -m pip install -r requirements.txt
+python -m uvicorn --version
+```
+
+If the last command prints a version, start the app again with:
+
+```bash
+./run.sh
+```
+
+If it still fails, rebuild the virtualenv completely:
+
+```bash
+rm -rf venv
+python3 -m venv venv
+source venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m uvicorn --version
+./run.sh
+```
 
 ---
 
