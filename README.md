@@ -18,6 +18,7 @@ AI-powered expense tracker with receipt scanning. Snap or upload a photo of your
 - **Edit & delete** — Edit any field (including date and attribution); delete requires confirmation. Deleting an expense never removes its receipt images — they become orphaned and remain accessible on the Scanned page. Superuser only.
 - **Charts / Analytics** — Date-range overview (month / 3 months / year / all time) with spend by category (bar chart), top merchants, by-month table, filterable category list with multi-select and combined totals, and a searchable item drill-down. Categories, merchants, and months are clickable and open a drill-down list of matching expenses (each editable).
 - **AI Costs** — Dedicated page (menu → **AI Costs**) showing the total OpenAI spend and a monthly breakdown. Each month shows the highest- and lowest-cost expense (clickable to open the full edit modal). Costs are recorded per scan and only shown when a real value exists. Expense cards across all views (home, Personal, All Expenses, chart drill-downs) show the AI cost when present.
+- **Password reset** — Login page has a "Forgot password?" link. The app emails a one-time reset link (valid 1 hour) to the user's registered address. Requires SMTP credentials in `.env`. The reset link opens the app and prompts for a new password, then signs the user in automatically.
 - **User management** — Superusers can create, edit (username, password, email, superuser flag), and delete users from a dedicated panel.
 - **Configurable** — Set your own payment methods and currency via `.env`.
 
@@ -307,6 +308,10 @@ All settings live in `.env`:
 | `SNAP_SESSION_MAX_AGE_SECONDS` | `1209600` (14 days) | Session cookie lifetime |
 | `SNAP_COOKIE_SECURE` | `0` | Set to `1` when running behind HTTPS |
 | `SNAP_SCAN_MODEL` | `gpt-4o` | OpenAI model used for receipt scanning |
+| `SNAP_SMTP_HOST` | `smtp.gmail.com` | SMTP server for password reset emails |
+| `SNAP_SMTP_PORT` | `587` | SMTP port (STARTTLS) |
+| `SNAP_SMTP_USER` | (unset) | SMTP login / sender address |
+| `SNAP_SMTP_PASSWORD` | (unset) | SMTP password or app password |
 
 ### Custom payment methods
 
@@ -359,6 +364,8 @@ Expense and user routes expect a **session cookie** from `POST /api/auth/login` 
 | POST | `/api/auth/login` | JSON `username`, `password` — sets cookie |
 | POST | `/api/auth/logout` | Clears session and cookie |
 | GET | `/api/auth/me` | Current user or 401 |
+| POST | `/api/auth/forgot-password` | JSON `email` — sends reset link; always returns 200 |
+| POST | `/api/auth/reset-password` | JSON `token`, `new_password` — validates token and updates password |
 
 ### Users (superuser only)
 
@@ -399,24 +406,62 @@ Expense and user routes expect a **session cookie** from `POST /api/auth/login` 
 ## Project structure
 
 ```
-snap-expenses/
+family-expenses/
   backend/
     app.py
     database.py
     deps.py
     models.py
-    routers/auth.py
-    routers/users.py
-    routers/expenses.py
-    services/ai.py
-    services/passwords.py
+    routers/
+      auth.py
+      users.py
+      expenses.py
+    services/
+      ai.py
+      email.py               # SMTP password-reset emails
+      passwords.py
   frontend/
-    app/page.tsx
-    app/icon.svg              # favicon
-    components/PhotoCapture.tsx
-    components/Toast.tsx
-    lib/api.ts
-    lib/dates.ts
+    app/
+      layout.tsx
+      page.tsx               # root shell; delegates to components
+      icon.svg               # favicon
+      globals.css
+    components/
+      Modal.tsx
+      PhotoCapture.tsx
+      Toast.tsx
+      admin/
+        CreateUserModal.tsx
+        EditUserModal.tsx
+        UserAdminPanel.tsx
+      analytics/
+        AiCostsPanel.tsx
+        AnalyticsPanel.tsx
+      auth/
+        AuthGate.tsx
+        LoginForm.tsx         # includes inline ForgotPasswordForm
+        ResetPasswordForm.tsx
+      expenses/
+        AllExpensesPanel.tsx
+        AttributionPicker.tsx
+        EditExpenseForm.tsx
+        ExpensePickerModal.tsx
+        ExpensesPage.tsx
+        ManualEntryForm.tsx
+        PersonalPanel.tsx
+        ReceiptReviewForm.tsx
+        SearchModal.tsx
+      layout/
+        HeaderMenu.tsx
+      scanning/
+        ScanProgress.tsx
+        ScannedImagePickerModal.tsx
+        ScannedPanel.tsx
+      shared/
+        FormField.tsx
+    lib/
+      api.ts
+      dates.ts
     next.config.ts            # static export → out/
   frontend/out/               # produced by `npm run build` (not always in git)
   data/
