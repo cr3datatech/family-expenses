@@ -726,7 +726,7 @@ function ExpensesPage({
                       </div>
                       {exp.note && <p className="text-[11px] text-skin-secondary mt-0.5 truncate">{exp.note}</p>}
                       <p className="text-[10px] text-skin-secondary mt-0.5">{exp.date}</p>
-                      <p className="text-[10px] text-skin-secondary">estimated AI cost: ${(exp.ai_cost ?? (exp.items.length > 0 ? 0.004 : 0.002)).toFixed(4)}</p>
+                      {exp.ai_cost != null && <p className="text-[10px] text-skin-secondary">AI cost: ${exp.ai_cost.toFixed(4)}</p>}
                     </div>
                     <div className="flex flex-col items-end justify-between self-stretch ml-2">
                       <div className="flex items-center gap-2">
@@ -1159,69 +1159,6 @@ function ManualEntryForm({
 }
 
 
-function HistoryList({ expenses, onEdit }: { expenses: Expense[]; onEdit: (expense: Expense) => void }) {
-  const grouped = expenses.reduce<Record<string, Expense[]>>((acc, exp) => {
-    const key = exp.date.substring(0, 7);
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(exp);
-    return acc;
-  }, {});
-
-  const sortedMonths = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
-
-  const formatMonthHeader = (ym: string) => {
-    const [year, month] = ym.split("-");
-    const date = new Date(parseInt(year), parseInt(month) - 1);
-    return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-  };
-
-  if (expenses.length === 0) {
-    return <p className="text-sm text-skin-secondary py-4 text-center">No expenses found.</p>;
-  }
-
-  return (
-    <div className="max-h-[65vh] overflow-y-auto -mx-1 px-1 space-y-1">
-      {sortedMonths.map((ym) => (
-        <div key={ym}>
-          <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm py-2 px-1">
-            <p className="text-[11px] font-bold text-snap-600 uppercase tracking-wide">{formatMonthHeader(ym)}</p>
-          </div>
-          <div className="space-y-1.5">
-            {grouped[ym].map((exp) => (
-              <div
-                key={exp.id}
-                role="button"
-                tabIndex={0}
-                aria-label={`Edit expense: ${exp.merchant || exp.category}`}
-                onClick={() => onEdit(exp)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    onEdit(exp);
-                  }
-                }}
-                className="bg-snap-50/50 rounded-xl p-3 flex items-center gap-2 cursor-pointer text-left w-full active:bg-snap-100/80 transition-colors"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-snap-800 truncate">{exp.merchant || exp.category}</p>
-                  <div className="flex gap-2 mt-0.5 flex-wrap">
-                    <span className="text-[10px] text-skin-secondary capitalize">{exp.category}</span>
-                    <span className="text-[10px] text-skin-secondary">{exp.date}</span>
-                    {exp.is_shared
-                      ? <span className="text-[10px] text-snap-400">Shared</span>
-                      : <span className="text-[10px] font-semibold text-snap-600">{exp.attributed_username}</span>
-                    }
-                  </div>
-                </div>
-                <span className="text-sm font-bold text-snap-600 whitespace-nowrap">{exp.total.toFixed(2)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 
 function EditExpenseForm({
@@ -1988,6 +1925,7 @@ function PersonalPanel({
                         )}
                       </div>
                       {exp.note && <p className="text-xs text-skin-secondary mt-0.5 italic truncate">{exp.note}</p>}
+                      {exp.ai_cost != null && <p className="text-[10px] text-skin-secondary mt-0.5">AI cost: ${exp.ai_cost.toFixed(4)}</p>}
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-sm font-mono font-bold text-snap-800">{share.toFixed(2)}</p>
@@ -2225,6 +2163,7 @@ function AllExpensesPanel({
                         )}
                       </div>
                       {exp.note && <p className="text-xs text-skin-secondary mt-0.5 italic truncate">{exp.note}</p>}
+                      {exp.ai_cost != null && <p className="text-[10px] text-skin-secondary mt-0.5">AI cost: ${exp.ai_cost.toFixed(4)}</p>}
                     </div>
                     <span className="text-sm font-mono font-bold text-snap-800 shrink-0">{exp.total.toFixed(2)}</span>
                   </div>
@@ -2638,6 +2577,7 @@ function AnalyticsPanel({ onClose, cards, currentUser, allUsers }: {
                       <p className="text-sm font-semibold text-snap-800 truncate">{exp.merchant || exp.category}</p>
                       <p className="text-xs text-skin-secondary mt-0.5">{exp.date}{exp.card ? ` · ${exp.card}` : ""}</p>
                       {exp.note && <p className="text-xs text-skin-secondary mt-0.5 italic">{exp.note}</p>}
+                      {exp.ai_cost != null && <p className="text-[10px] text-skin-secondary mt-0.5">AI cost: ${exp.ai_cost.toFixed(4)}</p>}
                     </div>
                     <span className="text-sm font-mono font-bold text-snap-800 shrink-0">{exp.total.toFixed(2)}</span>
                   </div>
