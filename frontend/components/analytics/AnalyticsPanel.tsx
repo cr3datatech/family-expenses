@@ -5,6 +5,7 @@ import { todayISO } from "@/lib/dates";
 import { api, AnalyticsData, Expense, ExpenseCreate, User } from "@/lib/api";
 import Modal from "@/components/Modal";
 import EditExpenseForm from "@/components/expenses/EditExpenseForm";
+import ManualEntryForm from "@/components/expenses/ManualEntryForm";
 
 export const ANALYTICS_PRESETS = [
   { key: "month", label: "Month" },
@@ -45,7 +46,9 @@ export default function AnalyticsPanel({ onClose, cards, currentUser, allUsers }
   const [drillKey, setDrillKey] = useState<string | null>(null);
   const [drillExpenses, setDrillExpenses] = useState<Expense[] | null>(null);
   const [drillLoading, setDrillLoading] = useState(false);
+  const [drillHistory, setDrillHistory] = useState<Array<{ mode: "category" | "merchant" | "month"; key: string }>>([]);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [copyExpensePrefill, setCopyExpensePrefill] = useState<Expense | null>(null);
 
   useEffect(() => {
     const { from, to } = getAnalyticsRange(preset);
@@ -81,6 +84,28 @@ export default function AnalyticsPanel({ onClose, cards, currentUser, allUsers }
     setDrillMode(null);
     setDrillKey(null);
     setDrillExpenses(null);
+    setDrillHistory([]);
+  };
+
+  const navigateDrill = (mode: "category" | "merchant" | "month", key: string) => {
+    if (drillMode && drillKey) {
+      setDrillHistory(h => [...h, { mode: drillMode, key: drillKey }]);
+    }
+    setDrillMode(mode);
+    setDrillKey(key);
+    fetchDrill(mode, key);
+  };
+
+  const goBack = () => {
+    if (drillHistory.length > 0) {
+      const prev = drillHistory[drillHistory.length - 1];
+      setDrillHistory(h => h.slice(0, -1));
+      setDrillMode(prev.mode);
+      setDrillKey(prev.key);
+      fetchDrill(prev.mode, prev.key);
+    } else {
+      closeDrill();
+    }
   };
 
   const refreshDrill = () => {
@@ -98,6 +123,12 @@ export default function AnalyticsPanel({ onClose, cards, currentUser, allUsers }
   const handleDelete = async (id: number, deleteArchive = false) => {
     await api.delete(id, deleteArchive);
     setEditingExpense(null);
+    refreshDrill();
+  };
+
+  const handleSaveCopy = async (data: ExpenseCreate) => {
+    await api.create(data);
+    setCopyExpensePrefill(null);
     refreshDrill();
   };
 
@@ -296,12 +327,17 @@ export default function AnalyticsPanel({ onClose, cards, currentUser, allUsers }
               />
             )}
           </Modal>
+          <Modal open={!!copyExpensePrefill} onClose={() => setCopyExpensePrefill(null)} title="Copy Expense">
+            {copyExpensePrefill && (
+              <ManualEntryForm key={copyExpensePrefill.id} cards={cards} onSubmit={handleSaveCopy} currentUser={currentUser} allUsers={allUsers} prefill={copyExpensePrefill} />
+            )}
+          </Modal>
 
           <div className="sticky top-0 z-10 bg-snap-50/90 backdrop-blur-sm border-b border-snap-100">
             <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
               <button
                 type="button"
-                onClick={closeDrill}
+                onClick={goBack}
                 className="text-sm font-semibold text-snap-600"
               >
                 ← Back
@@ -335,20 +371,44 @@ export default function AnalyticsPanel({ onClose, cards, currentUser, allUsers }
                 return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
               };
               const renderExpense = (exp: Expense) => (
-                <button
+                <div
                   key={exp.id}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setEditingExpense(exp)}
-                  className="w-full text-left bg-white rounded-[14px] px-4 py-3 shadow-[0_1px_4px_rgba(34,197,94,0.08)] hover:bg-snap-50 transition-colors"
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditingExpense(exp); } }}
+                  className="w-full text-left bg-white rounded-[14px] px-4 py-3 shadow-[0_1px_4px_rgba(34,197,94,0.08)] hover:bg-snap-50 transition-colors cursor-pointer"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-snap-800 truncate">{exp.merchant || exp.category}</p>
+                    <div className="min-w-0 flex-1">
+                      {drillMode !== "merchant" && exp.merchant ? (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); navigateDrill("merchant", exp.merchant!); }}
+                          className="text-sm font-semibold text-snap-600 underline underline-offset-2 truncate max-w-full text-left hover:text-snap-800"
+                        >
+                          {exp.merchant}
+                        </button>
+                      ) : (
+                        <p className="text-sm font-semibold text-snap-800 truncate">{exp.merchant || exp.category}</p>
+                      )}
                       <p className="text-xs text-skin-secondary mt-0.5">{exp.date}{exp.card ? ` · ${exp.card}` : ""}</p>
                       {exp.note && <p className="text-xs text-skin-secondary mt-0.5 italic">{exp.note}</p>}
                       {exp.ai_cost != null && <p className="text-[10px] text-skin-secondary mt-0.5">AI cost: ${exp.ai_cost.toFixed(4)}</p>}
                     </div>
-                    <span className="text-sm font-mono font-bold text-snap-800 shrink-0">{exp.total.toFixed(2)}</span>
+                    <div className="flex flex-col items-end justify-between self-stretch shrink-0 gap-1">
+                      <span className="text-sm font-mono font-bold text-snap-800">{exp.total.toFixed(2)}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setCopyExpensePrefill(exp); }}
+                        className="w-6 h-6 rounded-full bg-snap-100 text-snap-500 flex items-center justify-center hover:bg-snap-200 transition-colors"
+                        aria-label="Copy expense"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+                          <path d="M4 2a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1h1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h2zm0 1H2a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h2V4a2 2 0 0 1 2-2V3zm2-1a1 1 0 0 0-1 1v10h7V3a1 1 0 0 0-1-1H6z"/>
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                   {exp.items.length > 0 && (
                     <div className="mt-2 space-y-0.5">
@@ -360,7 +420,7 @@ export default function AnalyticsPanel({ onClose, cards, currentUser, allUsers }
                       ))}
                     </div>
                   )}
-                </button>
+                </div>
               );
               return (
                 <>

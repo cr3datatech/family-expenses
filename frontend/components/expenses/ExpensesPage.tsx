@@ -427,7 +427,7 @@ export default function ExpensesPage({
       </Modal>
 
       {/* Manual Entry Modal */}
-      <Modal open={showAdd} onClose={() => { setShowAdd(false); setCopyExpensePrefill(null); }} title="Add Expense">
+      <Modal open={showAdd} onClose={() => { setShowAdd(false); setCopyExpensePrefill(null); }} title={copyExpensePrefill ? "Copy Expense" : "Add Expense"}>
         <ManualEntryForm key={copyExpensePrefill?.id ?? "new"} cards={cards} onSubmit={handleSaveManual} currentUser={user} allUsers={allUsers} prefill={copyExpensePrefill ?? undefined} />
       </Modal>
 

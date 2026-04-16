@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { api, Expense, ExpenseCreate, User } from "@/lib/api";
 import Modal from "@/components/Modal";
 import EditExpenseForm from "@/components/expenses/EditExpenseForm";
+import ManualEntryForm from "@/components/expenses/ManualEntryForm";
 
 export default function AllExpensesPanel({
   onClose,
@@ -22,6 +23,7 @@ export default function AllExpensesPanel({
   const [expenses, setExpenses] = useState<Expense[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [copyExpensePrefill, setCopyExpensePrefill] = useState<Expense | null>(null);
 
   const userById = Object.fromEntries(allUsers.map(u => [u.id, u]));
   const visibleUsers = currentUser.is_superuser ? allUsers : [currentUser];
@@ -88,6 +90,12 @@ export default function AllExpensesPanel({
     refresh();
   };
 
+  const handleSaveCopy = async (data: ExpenseCreate) => {
+    await api.create(data);
+    setCopyExpensePrefill(null);
+    refresh();
+  };
+
   // Group expenses by month for display
   const grouped = (expenses ?? []).reduce<Record<string, Expense[]>>((acc, exp) => {
     const key = exp.date.substring(0, 7);
@@ -114,6 +122,11 @@ export default function AllExpensesPanel({
             currentUser={currentUser}
             allUsers={allUsers}
           />
+        )}
+      </Modal>
+      <Modal open={!!copyExpensePrefill} onClose={() => setCopyExpensePrefill(null)} title="Copy Expense">
+        {copyExpensePrefill && (
+          <ManualEntryForm key={copyExpensePrefill.id} cards={cards} onSubmit={handleSaveCopy} currentUser={currentUser} allUsers={allUsers} prefill={copyExpensePrefill} />
         )}
       </Modal>
 
@@ -202,11 +215,13 @@ export default function AllExpensesPanel({
             </div>
             <div className="space-y-1.5">
               {grouped[ym].map(exp => (
-                <button
+                <div
                   key={exp.id}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setEditingExpense(exp)}
-                  className="w-full text-left bg-white rounded-[14px] px-4 py-3 shadow-[0_1px_4px_rgba(34,197,94,0.08)] hover:bg-snap-50 transition-colors"
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditingExpense(exp); } }}
+                  className="w-full text-left bg-white rounded-[14px] px-4 py-3 shadow-[0_1px_4px_rgba(34,197,94,0.08)] hover:bg-snap-50 transition-colors cursor-pointer"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
@@ -225,9 +240,21 @@ export default function AllExpensesPanel({
                       {exp.note && <p className="text-xs text-skin-secondary mt-0.5 italic truncate">{exp.note}</p>}
                       {exp.ai_cost != null && <p className="text-[10px] text-skin-secondary mt-0.5">AI cost: ${exp.ai_cost.toFixed(4)}</p>}
                     </div>
-                    <span className="text-sm font-mono font-bold text-snap-800 shrink-0">{exp.total.toFixed(2)}</span>
+                    <div className="flex flex-col items-end justify-between self-stretch shrink-0 gap-1">
+                      <span className="text-sm font-mono font-bold text-snap-800">{exp.total.toFixed(2)}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setCopyExpensePrefill(exp); }}
+                        className="w-6 h-6 rounded-full bg-snap-100 text-snap-500 flex items-center justify-center hover:bg-snap-200 transition-colors"
+                        aria-label="Copy expense"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+                          <path d="M4 2a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1h1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h2zm0 1H2a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h2V4a2 2 0 0 1 2-2V3zm2-1a1 1 0 0 0-1 1v10h7V3a1 1 0 0 0-1-1H6z"/>
+                        </svg>
+                      </button>
+                    </div>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           </div>
