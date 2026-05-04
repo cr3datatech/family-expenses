@@ -183,6 +183,8 @@ export const api = {
 
   cards: () => request<string[]>("/expenses/cards"),
 
+  activeMonths: () => request<string[]>("/expenses/active-months"),
+
   list: (year?: number, month?: number, isShared?: boolean, attributedTo?: number, dateFrom?: string, dateTo?: string) => {
     const params = new URLSearchParams();
     if (year !== undefined && month !== undefined) {
@@ -274,10 +276,12 @@ export const api = {
 
   config: () => request<{ scan_model: string }>("/config"),
 
-  analytics: (dateFrom?: string, dateTo?: string) => {
+  analytics: (dateFrom?: string, dateTo?: string, isShared?: boolean, attributedTo?: number) => {
     const params = new URLSearchParams();
     if (dateFrom) params.set("date_from", dateFrom);
     if (dateTo) params.set("date_to", dateTo);
+    if (isShared !== undefined) params.set("is_shared", isShared ? "true" : "false");
+    if (attributedTo !== undefined) params.set("attributed_to", attributedTo.toString());
     return request<AnalyticsData>(`/expenses/analytics?${params}`);
   },
 

@@ -111,6 +111,15 @@ def get_cards(_user: CurrentUserDep):
     return DEFAULT_CARDS
 
 
+@router.get("/active-months")
+def get_active_months(_user: CurrentUserDep, db: sqlite3.Connection = Depends(get_db)):
+    """Return sorted list of 'YYYY-MM' strings that have at least one expense."""
+    rows = db.execute(
+        "SELECT DISTINCT substr(date, 1, 7) AS ym FROM expenses ORDER BY ym"
+    ).fetchall()
+    return [row["ym"] for row in rows]
+
+
 @router.get("/", response_model=list[ExpenseResponse])
 def list_expenses(
     _user: CurrentUserDep,
@@ -437,6 +446,8 @@ def analytics(
     _user: CurrentUserDep,
     date_from: str | None = Query(None),
     date_to: str | None = Query(None),
+    is_shared: bool | None = Query(None),
+    attributed_to: int | None = Query(None),
     db: sqlite3.Connection = Depends(get_db),
 ):
     conditions = ["1=1"]
@@ -447,6 +458,12 @@ def analytics(
     if date_to:
         conditions.append("e.date <= ?")
         params.append(date_to)
+    if is_shared is not None:
+        conditions.append("e.is_shared = ?")
+        params.append(1 if is_shared else 0)
+    if attributed_to is not None:
+        conditions.append("e.user_id = ? AND e.is_shared = 0")
+        params.append(attributed_to)
     where = " AND ".join(conditions)
 
     total_row = db.execute(

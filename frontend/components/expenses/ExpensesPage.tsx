@@ -10,8 +10,6 @@ import HeaderMenu from "@/components/layout/HeaderMenu";
 import ManualEntryForm from "@/components/expenses/ManualEntryForm";
 import ReceiptReviewForm from "@/components/expenses/ReceiptReviewForm";
 import EditExpenseForm from "@/components/expenses/EditExpenseForm";
-import PersonalPanel from "@/components/expenses/PersonalPanel";
-import AllExpensesPanel from "@/components/expenses/AllExpensesPanel";
 import SearchModal from "@/components/expenses/SearchModal";
 import ExpensePickerModal from "@/components/expenses/ExpensePickerModal";
 import { ANALYTICS_PRESETS, getAnalyticsRange } from "@/components/analytics/AnalyticsPanel";
@@ -33,7 +31,6 @@ export default function ExpensesPage({
   const [summary, setSummary] = useState<{ total: number; count: number; by_category: Record<string, number> } | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showReview, setShowReview] = useState(false);
-  const [showAllExpenses, setShowAllExpenses] = useState(false);
   const [showScanned, setShowScanned] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   /** `null` = idle; otherwise current step message for receipt scan */
@@ -42,7 +39,6 @@ export default function ExpensesPage({
   const scanning = scanPhase !== null;
   const [scanResult, setScanResult] = useState<ReceiptScanResult | null>(null);
   const [showAdmin, setShowAdmin] = useState(false);
-  const [showPersonal, setShowPersonal] = useState(false);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [expenseView, setExpenseView] = useState<"all" | "shared" | "personal">("all");
   const [showSearch, setShowSearch] = useState(false);
@@ -199,8 +195,6 @@ export default function ExpensesPage({
 
   return (
     <>
-      {showPersonal && <PersonalPanel onClose={() => setShowPersonal(false)} cards={cards} currentUser={user} allUsers={allUsers} />}
-      {showAllExpenses && <AllExpensesPanel onClose={() => setShowAllExpenses(false)} cards={cards} currentUser={user} allUsers={allUsers} />}
       {showScanned && <ScannedPanel onClose={() => setShowScanned(false)} cards={cards} currentUser={user} allUsers={allUsers} />}
       {showAiCosts && <AiCostsPanel onClose={() => setShowAiCosts(false)} cards={cards} currentUser={user} allUsers={allUsers} />}
       {showReports && <ReportsPanel onClose={() => setShowReports(false)} cards={cards} currentUser={user} allUsers={allUsers} />}
@@ -211,8 +205,6 @@ export default function ExpensesPage({
             username={user.username}
             isSuperuser={user.is_superuser}
             onSearch={() => { setSearchQuery(""); setSearchResults([]); setShowSearch(true); }}
-            onPersonal={() => setShowPersonal(true)}
-            onAllExpenses={() => setShowAllExpenses(true)}
             onScanned={() => setShowScanned(true)}
             onAiCosts={() => setShowAiCosts(true)}
             onReports={() => setShowReports(true)}
@@ -275,7 +267,7 @@ export default function ExpensesPage({
             {categoryEntries.map(([cat, amount]) => (
               <div key={cat} className="flex justify-between items-center">
                 <span className="text-sm text-snap-800 capitalize">{cat}</span>
-                <span className="text-sm font-semibold text-snap-600">{amount.toFixed(2)}</span>
+                <span className="text-sm font-semibold text-snap-600">€{amount.toFixed(2)}</span>
               </div>
             ))}
           </div>

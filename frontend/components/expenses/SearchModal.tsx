@@ -34,7 +34,14 @@ export default function SearchModal({ query, results, loading, onQueryChange, on
             >
               <div className="flex justify-between items-start gap-2">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-snap-800 truncate">{exp.merchant || exp.category}</p>
+                  <p className="text-sm font-semibold text-snap-800 truncate flex items-center gap-1">
+                    <span className="truncate">{exp.merchant || exp.category}</span>
+                    {exp.receipt_paths.length > 0 && (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 shrink-0 text-snap-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                      </svg>
+                    )}
+                  </p>
                   <p className="text-[10px] text-skin-secondary">{exp.date} · {exp.category}</p>
                   {exp.note && <p className="text-[11px] text-skin-secondary truncate">{exp.note}</p>}
                 </div>
