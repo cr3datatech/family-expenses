@@ -328,7 +328,7 @@ export default function ExpensesPage({
                         <span className="text-[10px] text-skin-secondary capitalize">{exp.category}</span>
                         <span className="text-[10px] text-skin-secondary">{exp.card}</span>
                         {exp.is_shared
-                          ? <span className="text-[10px] text-snap-400">Shared</span>
+                          ? <span className="text-[10px] text-snap-400">Shared{exp.shared_with.length > 0 ? ` ÷${exp.shared_with.length}` : ''}</span>
                           : <span className="text-[10px] font-semibold text-snap-600">{exp.attributed_username}</span>
                         }
                       </div>
@@ -338,9 +338,16 @@ export default function ExpensesPage({
                     </div>
                     <div className="flex flex-col items-end justify-between self-stretch ml-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-snap-600 whitespace-nowrap">
-                          €{exp.total.toFixed(2)}
-                        </span>
+                        <div className="flex flex-col items-end">
+                          <span className="text-sm font-bold text-snap-600 whitespace-nowrap">
+                            €{exp.total.toFixed(2)}
+                          </span>
+                          {exp.is_shared && exp.shared_with.length > 0 && (
+                            <span className="text-[10px] text-skin-secondary whitespace-nowrap">
+                              €{(exp.total / exp.shared_with.length).toFixed(2)} ea
+                            </span>
+                          )}
+                        </div>
                         {user.is_superuser && (
                           <button
                             type="button"

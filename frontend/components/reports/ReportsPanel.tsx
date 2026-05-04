@@ -370,7 +370,12 @@ export default function ReportsPanel({
           {exp.note && <p className="text-xs text-skin-secondary mt-0.5 italic">{exp.note}</p>}
         </div>
         <div className="flex flex-col items-end shrink-0 gap-1">
-          <span className="text-sm font-mono font-bold text-snap-800">{exp.total.toFixed(2)}</span>
+          <div className="flex flex-col items-end">
+            <span className="text-sm font-mono font-bold text-snap-800">{exp.total.toFixed(2)}</span>
+            {exp.is_shared && exp.shared_with.length > 0 && (
+              <span className="text-[10px] text-skin-secondary whitespace-nowrap">÷{exp.shared_with.length} · {(exp.total / exp.shared_with.length).toFixed(2)} ea</span>
+            )}
+          </div>
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); setCopyExpensePrefill(exp); }}
@@ -1064,14 +1069,26 @@ export default function ReportsPanel({
                   <p className="text-sm text-skin-secondary text-center py-4">No expenses on this day.</p>
                 ) : (
                   dayExpenses.map(exp => (
-                    <div key={exp.id} className="bg-snap-50 rounded-xl px-4 py-3">
+                    <div
+                      key={exp.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => { setCalendarDrillDay(null); setEditingExpense(exp); }}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setCalendarDrillDay(null); setEditingExpense(exp); } }}
+                      className="bg-snap-50 rounded-xl px-4 py-3 cursor-pointer hover:bg-snap-100 transition-colors"
+                    >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-semibold text-snap-800 truncate">{exp.merchant || exp.category}</p>
-                          <p className="text-xs text-skin-secondary mt-0.5 capitalize">{exp.category}{exp.card ? ` · ${exp.card}` : ""}</p>
+                          <p className="text-xs text-skin-secondary mt-0.5 capitalize">{exp.category}{exp.card ? ` · ${exp.card}` : ""}{exp.is_shared && exp.shared_with.length > 0 ? ` · Shared ÷${exp.shared_with.length}` : ""}</p>
                           {exp.note && <p className="text-xs text-skin-secondary mt-0.5 italic truncate">{exp.note}</p>}
                         </div>
-                        <span className="text-sm font-bold text-snap-800 shrink-0">{exp.total.toFixed(2)}</span>
+                        <div className="flex flex-col items-end shrink-0">
+                          <span className="text-sm font-bold text-snap-800">{exp.total.toFixed(2)}</span>
+                          {exp.is_shared && exp.shared_with.length > 0 && (
+                            <span className="text-[10px] text-skin-secondary">÷{exp.shared_with.length} · {(exp.total / exp.shared_with.length).toFixed(2)} ea</span>
+                          )}
+                        </div>
                       </div>
                       {exp.items.length > 0 && (
                         <div className="mt-2 space-y-0.5">
