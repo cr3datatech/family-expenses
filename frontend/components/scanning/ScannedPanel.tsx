@@ -157,7 +157,7 @@ export default function ScannedPanel({ onClose, cards, currentUser, allUsers }: 
             className="w-full text-left px-2 py-1 rounded-lg bg-gray-500 hover:bg-gray-600 active:bg-gray-700 transition-colors"
           >
             <p className="text-[11px] font-semibold text-white truncate">{img.expense.merchant || img.expense.category}</p>
-            <p className="text-[10px] text-gray-200">{img.expense.date} · {img.expense.total.toFixed(2)} {img.expense.currency}</p>
+            <p className="text-[10px] text-gray-200">{img.expense.date} · €{img.expense.total.toFixed(2)}</p>
           </button>
         ) : (
           <p className="text-[10px] text-skin-secondary italic">Orphaned</p>
@@ -238,14 +238,14 @@ export default function ScannedPanel({ onClose, cards, currentUser, allUsers }: 
       </Modal>
       <div className="fixed inset-0 z-50 bg-snap-50 overflow-y-auto">
         <div className="sticky top-0 z-10 bg-snap-50/90 backdrop-blur-sm border-b border-snap-100">
-          <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
+          <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
             <button type="button" onClick={onClose} className="text-sm font-semibold text-snap-600">← Back</button>
             <h1 className="text-base font-bold text-snap-800 flex-1">Scanned</h1>
             {images && (
               <span className="text-xs text-skin-secondary">{images.length} image{images.length !== 1 ? "s" : ""}</span>
             )}
           </div>
-          <div className="max-w-lg mx-auto px-4 pb-3 flex gap-2">
+          <div className="max-w-5xl mx-auto px-4 pb-3 flex gap-2">
             <button
               type="button"
               onClick={() => uploadRef.current?.click()}
@@ -269,7 +269,7 @@ export default function ScannedPanel({ onClose, cards, currentUser, allUsers }: 
           <input ref={scanRef} type="file" accept="image/*" capture="environment" onChange={handleUploadCapture} className="hidden" />
         </div>
 
-        <div className="max-w-lg mx-auto px-4 py-4 space-y-6">
+        <div className="max-w-5xl mx-auto px-4 py-4 space-y-6">
           {loading && (
             <p className="text-sm text-skin-secondary text-center py-8">Loading…</p>
           )}

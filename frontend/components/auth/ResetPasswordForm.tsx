@@ -30,7 +30,7 @@ export default function ResetPasswordForm({ token, onLoggedIn }: { token: string
   };
 
   return (
-    <div className="p-4 max-w-lg mx-auto pt-16">
+    <div className="p-4 max-w-5xl mx-auto pt-16">
       <h1 className="text-xl font-bold text-snap-800 mb-6 text-center">Receipts</h1>
       <div className="space-y-3 bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(34,197,94,0.08)]">
         <form onSubmit={handleSubmit} className="space-y-3">

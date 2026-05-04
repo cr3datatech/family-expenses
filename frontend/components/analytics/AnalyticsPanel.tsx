@@ -180,10 +180,10 @@ export default function AnalyticsPanel({ onClose, cards, currentUser, allUsers }
             {/* Overview */}
             <div className="bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(34,197,94,0.08)]">
               <p className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide mb-1">Total spend</p>
-              <p className="text-2xl font-bold text-snap-800">{data.total.toFixed(2)} EUR</p>
+              <p className="text-2xl font-bold text-snap-800">€{data.total.toFixed(2)}</p>
               <p className="text-xs text-skin-secondary mt-0.5">
                 {data.count} {data.count === 1 ? "expense" : "expenses"}
-                {data.count > 0 && ` · avg ${(data.total / data.count).toFixed(2)} EUR`}
+                {data.count > 0 && ` · avg €${(data.total / data.count).toFixed(2)}`}
               </p>
             </div>
 

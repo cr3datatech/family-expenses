@@ -58,7 +58,7 @@ export default function ExpensePickerModal({ title, onSelect, onClose }: {
               className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-snap-50 transition-colors"
             >
               <p className="text-sm font-semibold text-snap-800 truncate">{exp.merchant || exp.category}</p>
-              <p className="text-[10px] text-skin-secondary">{exp.date} · {exp.total.toFixed(2)} {exp.currency} · {exp.category}</p>
+              <p className="text-[10px] text-skin-secondary">{exp.date} · €{exp.total.toFixed(2)} · {exp.category}</p>
             </button>
           ))}
         </div>

@@ -6,22 +6,22 @@ export default function HeaderMenu({
   username,
   isSuperuser,
   onSearch,
-  onCharts,
   onPersonal,
   onAllExpenses,
   onScanned,
   onAiCosts,
+  onReports,
   onUsers,
   onLogout,
 }: {
   username: string;
   isSuperuser: boolean;
   onSearch: () => void;
-  onCharts: () => void;
   onPersonal: () => void;
   onAllExpenses: () => void;
   onScanned: () => void;
   onAiCosts: () => void;
+  onReports: () => void;
   onUsers: () => void;
   onLogout: () => void;
 }) {
@@ -64,7 +64,7 @@ export default function HeaderMenu({
       {open && (
         <div className="absolute right-0 top-full mt-1.5 w-44 bg-white rounded-2xl shadow-lg border border-snap-100 overflow-hidden z-50">
           {item("Search", onSearch)}
-          {item("Charts", onCharts)}
+          {item("Reports", onReports)}
           {item("Personal", onPersonal)}
           {item("All Expenses", onAllExpenses)}
           {item("Scanned", onScanned)}

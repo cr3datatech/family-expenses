@@ -14,10 +14,11 @@ import PersonalPanel from "@/components/expenses/PersonalPanel";
 import AllExpensesPanel from "@/components/expenses/AllExpensesPanel";
 import SearchModal from "@/components/expenses/SearchModal";
 import ExpensePickerModal from "@/components/expenses/ExpensePickerModal";
-import AnalyticsPanel, { ANALYTICS_PRESETS, getAnalyticsRange } from "@/components/analytics/AnalyticsPanel";
+import { ANALYTICS_PRESETS, getAnalyticsRange } from "@/components/analytics/AnalyticsPanel";
 import AiCostsPanel from "@/components/analytics/AiCostsPanel";
 import ScannedPanel from "@/components/scanning/ScannedPanel";
 import UserAdminPanel from "@/components/admin/UserAdminPanel";
+import ReportsPanel from "@/components/reports/ReportsPanel";
 
 export default function ExpensesPage({
   user,
@@ -50,8 +51,8 @@ export default function ExpensesPage({
   const [searchLoading, setSearchLoading] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [copyExpensePrefill, setCopyExpensePrefill] = useState<Expense | null>(null);
-  const [showAnalytics, setShowAnalytics] = useState(false);
   const [showAiCosts, setShowAiCosts] = useState(false);
+  const [showReports, setShowReports] = useState(false);
   const [preset, setPreset] = useState("month");
   const [scanModel, setScanModel] = useState("AI");
 
@@ -198,29 +199,28 @@ export default function ExpensesPage({
 
   return (
     <>
-      {showAnalytics && <AnalyticsPanel onClose={() => setShowAnalytics(false)} cards={cards} currentUser={user} allUsers={allUsers} />}
       {showPersonal && <PersonalPanel onClose={() => setShowPersonal(false)} cards={cards} currentUser={user} allUsers={allUsers} />}
       {showAllExpenses && <AllExpensesPanel onClose={() => setShowAllExpenses(false)} cards={cards} currentUser={user} allUsers={allUsers} />}
       {showScanned && <ScannedPanel onClose={() => setShowScanned(false)} cards={cards} currentUser={user} allUsers={allUsers} />}
       {showAiCosts && <AiCostsPanel onClose={() => setShowAiCosts(false)} cards={cards} currentUser={user} allUsers={allUsers} />}
-      <div className="p-4 space-y-3 max-w-lg mx-auto">
-      <div className="sticky top-0 z-40 bg-snap-50/90 backdrop-blur-sm -mx-4 px-4 -mt-4 mb-2">
-        <div className="py-3 flex items-center justify-between gap-2">
-        <h1 className="text-xl font-bold text-snap-800">Receipts</h1>
-        <HeaderMenu
-          username={user.username}
-          isSuperuser={user.is_superuser}
-          onSearch={() => { setSearchQuery(""); setSearchResults([]); setShowSearch(true); }}
-          onCharts={() => setShowAnalytics(true)}
-          onPersonal={() => setShowPersonal(true)}
-          onAllExpenses={() => setShowAllExpenses(true)}
-          onScanned={() => setShowScanned(true)}
-          onAiCosts={() => setShowAiCosts(true)}
-          onUsers={() => { refreshUsers(); setShowAdmin(true); }}
-          onLogout={() => void onLogout()}
-        />
+      {showReports && <ReportsPanel onClose={() => setShowReports(false)} cards={cards} currentUser={user} allUsers={allUsers} />}
+      <div className="sticky top-0 z-40 bg-snap-50/90 backdrop-blur-sm border-b border-snap-100">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
+          <h1 className="text-xl font-bold text-snap-800">Receipts</h1>
+          <HeaderMenu
+            username={user.username}
+            isSuperuser={user.is_superuser}
+            onSearch={() => { setSearchQuery(""); setSearchResults([]); setShowSearch(true); }}
+            onPersonal={() => setShowPersonal(true)}
+            onAllExpenses={() => setShowAllExpenses(true)}
+            onScanned={() => setShowScanned(true)}
+            onAiCosts={() => setShowAiCosts(true)}
+            onReports={() => setShowReports(true)}
+            onUsers={() => { refreshUsers(); setShowAdmin(true); }}
+            onLogout={() => void onLogout()}
+          />
         </div>
-        <div className="flex gap-2 pb-2 overflow-x-auto">
+        <div className="max-w-5xl mx-auto px-4 pb-2 flex gap-2 overflow-x-auto">
           {ANALYTICS_PRESETS.map((p) => (
             <button
               key={p.key}
@@ -237,6 +237,7 @@ export default function ExpensesPage({
           ))}
         </div>
       </div>
+      <div className="max-w-5xl mx-auto px-4 py-4 space-y-3">
 
       {/* Total */}
       <div className="bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(34,197,94,0.08)]">
@@ -244,7 +245,7 @@ export default function ExpensesPage({
           {ANALYTICS_PRESETS.find(p => p.key === preset)?.label ?? "Total"}
         </p>
         <p className="text-2xl font-bold text-snap-800">
-          {summary?.total?.toFixed(2) || "0.00"} EUR
+          €{summary?.total?.toFixed(2) || "0.00"}
         </p>
         <p className="text-xs text-skin-secondary mt-0.5">
           {summary?.count || 0} expense{(summary?.count || 0) !== 1 ? "s" : ""}
@@ -346,7 +347,7 @@ export default function ExpensesPage({
                     <div className="flex flex-col items-end justify-between self-stretch ml-2">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-snap-600 whitespace-nowrap">
-                          {exp.total.toFixed(2)} {exp.currency}
+                          €{exp.total.toFixed(2)}
                         </span>
                         {user.is_superuser && (
                           <button
@@ -474,7 +475,7 @@ export default function ExpensesPage({
           onSelect={(exp) => { setShowSearch(false); setEditingExpense(exp); }}
         />
       </Modal>
-    </div>
+      </div>
     </>
   );
 }

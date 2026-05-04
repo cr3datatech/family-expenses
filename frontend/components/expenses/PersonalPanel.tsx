@@ -129,14 +129,14 @@ export default function PersonalPanel({
       </Modal>
 
       <div className="sticky top-0 z-10 bg-snap-50/90 backdrop-blur-sm border-b border-snap-100">
-        <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
           <button type="button" onClick={onClose} className="text-sm font-semibold text-snap-600">← Back</button>
           <h1 className="text-base font-bold text-snap-800 flex-1">Personal</h1>
           {expenses && <span className="text-xs text-skin-secondary">{expenses.length} expense{expenses.length !== 1 ? "s" : ""}</span>}
         </div>
 
         {/* Date presets */}
-        <div className="max-w-lg mx-auto px-4 pb-2 flex gap-2">
+        <div className="max-w-5xl mx-auto px-4 pb-2 flex gap-2">
           {ANALYTICS_PRESETS.map((p) => (
             <button
               key={p.key}
@@ -154,7 +154,7 @@ export default function PersonalPanel({
         </div>
 
         {/* User / type filters */}
-        <div className="max-w-lg mx-auto px-4 pb-3 space-y-2">
+        <div className="max-w-5xl mx-auto px-4 pb-3 space-y-2">
           <div className="flex flex-wrap gap-1.5">
             {visibleUsers.map(u => (
               <button
@@ -204,7 +204,7 @@ export default function PersonalPanel({
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto p-4 space-y-2">
+      <div className="max-w-5xl mx-auto p-4 space-y-2">
         {loading && <p className="text-center text-sm text-skin-secondary py-8">Loading…</p>}
         {!loading && expenses && expenses.length === 0 && (
           <p className="text-center text-sm text-skin-secondary py-8">No expenses found.</p>
@@ -215,12 +215,12 @@ export default function PersonalPanel({
             <div className="bg-white rounded-[14px] p-4 shadow-[0_1px_4px_rgba(34,197,94,0.08)] mb-2">
               <p className="text-[11px] font-bold text-skin-secondary uppercase tracking-wide mb-1">Your share</p>
               <p className="text-2xl font-bold text-snap-800">
-                {expenses.reduce((sum, e) => sum + effectiveAmount(e), 0).toFixed(2)} EUR
+                €{expenses.reduce((sum, e) => sum + effectiveAmount(e), 0).toFixed(2)}
               </p>
               <p className="text-xs text-skin-secondary mt-0.5">
                 {expenses.length} expense{expenses.length !== 1 ? "s" : ""}
                 {expenses.some(e => e.is_shared) && (
-                  <> · full total {expenses.reduce((sum, e) => sum + e.total, 0).toFixed(2)} EUR</>
+                  <> · full total €{expenses.reduce((sum, e) => sum + e.total, 0).toFixed(2)}</>
                 )}
               </p>
             </div>

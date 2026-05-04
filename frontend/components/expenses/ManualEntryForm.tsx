@@ -157,7 +157,7 @@ export default function ManualEntryForm({
         )}
       </div>
       <FormField label="Total">
-        <input type="number" step="0.01" value={total} onChange={(e) => { const v = parseFloat(e.target.value); setTotal(isNaN(v) ? e.target.value : Math.abs(v).toString()); }} placeholder="Amount (EUR)" required className="form-input" />
+        <input type="number" step="0.01" value={total} onChange={(e) => { const v = parseFloat(e.target.value); setTotal(isNaN(v) ? e.target.value : Math.abs(v).toString()); }} placeholder="Amount (€)" required className="form-input" />
       </FormField>
       <FormField label="Payment Type">
         <select value={card} onChange={(e) => setCard(e.target.value)} className="form-input">

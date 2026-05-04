@@ -60,13 +60,13 @@ export default function AiCostsPanel({ onClose, cards, currentUser, allUsers }: 
   return (
     <div className="fixed inset-0 z-50 bg-snap-50 overflow-y-auto">
       <div className="sticky top-0 z-10 bg-snap-50/90 backdrop-blur-sm border-b border-snap-100">
-        <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
           <button type="button" onClick={onClose} className="text-sm font-semibold text-snap-600">← Back</button>
           <h1 className="text-base font-bold text-snap-800 flex-1">AI Costs</h1>
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 py-4 space-y-5">
+      <div className="max-w-5xl mx-auto px-4 py-4 space-y-5">
         {loading && <p className="text-center text-sm text-skin-secondary py-8">Loading…</p>}
 
         {data && (

@@ -39,7 +39,7 @@ export default function SearchModal({ query, results, loading, onQueryChange, on
                   {exp.note && <p className="text-[11px] text-skin-secondary truncate">{exp.note}</p>}
                 </div>
                 <span className="text-sm font-bold text-snap-600 whitespace-nowrap shrink-0">
-                  {exp.total.toFixed(2)} {exp.currency}
+                  €{exp.total.toFixed(2)}
                 </span>
               </div>
             </button>
