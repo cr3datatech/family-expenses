@@ -1,0 +1,1260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>April 2026 expenses</title>
+<style>
+* { box-sizing: border-box; }
+:root {
+  --bg: #0a0a0b;
+  --card: #131316;
+  --card-2: #1a1a1f;
+  --card-3: #20202a;
+  --border: #26262d;
+  --border-strong: #3a3a44;
+  --text: #ededf0;
+  --text-2: #9a9aa6;
+  --text-3: #5c5c66;
+  --accent: #f97316;
+  --accent-2: #fb923c;
+  --accent-soft: rgba(249, 115, 22, 0.12);
+  --green: #4ade80;
+  --red: #f87171;
+  --blue: #60a5fa;
+  --purple: #c084fc;
+}
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+.app { max-width: 1280px; margin: 0 auto; padding: 32px 24px 80px; }
+header {
+  display: flex; justify-content: space-between; align-items: end;
+  margin-bottom: 28px; flex-wrap: wrap; gap: 12px;
+}
+h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 4px; }
+.subtitle { color: var(--text-2); font-size: 14px; }
+.header-row {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 16px;
+}
+.tabs {
+  display: flex; gap: 4px;
+  background: var(--card); padding: 4px;
+  border-radius: 12px; border: 1px solid var(--border);
+  width: fit-content;
+}
+.search-btn {
+  background: var(--accent); color: white;
+  border: none; border-radius: 10px;
+  padding: 11px 18px; font-size: 13px; font-weight: 500;
+  cursor: pointer; font-family: inherit;
+  transition: background 0.15s ease;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.search-btn::before { content: "🔎"; font-size: 12px; }
+.search-btn:hover { background: var(--accent-2); }
+@media (max-width: 640px) {
+  .header-row { width: 100%; }
+  .tabs { width: 100%; flex: 1; }
+  .search-btn { width: 100%; padding: 10px; }
+}
+.tab {
+  padding: 10px 22px; border-radius: 8px;
+  font-size: 14px; font-weight: 500;
+  cursor: pointer; user-select: none;
+  color: var(--text-2);
+  transition: all 0.15s ease;
+  background: transparent; border: none;
+  font-family: inherit;
+}
+.tab:hover { color: var(--text); }
+.tab.active {
+  background: var(--card-2);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+.tab .count {
+  margin-left: 8px;
+  font-size: 11px; color: var(--text-3);
+  background: var(--bg); padding: 2px 8px; border-radius: 999px;
+}
+.tab.active .count { color: var(--accent); }
+.filter-chip {
+  display: none;
+  align-items: center; gap: 8px;
+  padding: 6px 12px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(249, 115, 22, 0.25);
+  border-radius: 999px;
+  font-size: 12px; color: var(--accent-2);
+  margin-bottom: 16px; width: fit-content;
+}
+.filter-chip.active { display: inline-flex; }
+.filter-chip button {
+  background: transparent; border: none; color: var(--accent-2);
+  cursor: pointer; padding: 0 0 0 4px; font-size: 14px;
+  font-family: inherit;
+}
+.notice {
+  background: rgba(249, 115, 22, 0.08);
+  border: 1px solid rgba(249, 115, 22, 0.2);
+  color: var(--accent-2);
+  padding: 12px 16px; border-radius: 10px;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+.grid { display: grid; gap: 16px; }
+.grid-stats { grid-template-columns: repeat(4, 1fr); }
+.grid-2 { grid-template-columns: 1fr 1fr; }
+.grid-3 { grid-template-columns: 2fr 1fr; }
+@media (max-width: 900px) {
+  .grid-stats { grid-template-columns: repeat(2, 1fr); }
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .app { padding: 16px 12px 60px; }
+  h1 { font-size: 24px; }
+  header { flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: 18px; }
+  header > div:last-child { font-size: 10px; }
+  .tabs { width: 100%; padding: 3px; }
+  .tab { flex: 1; text-align: center; padding: 9px 8px; font-size: 13px; }
+  .tab .count { display: none; }
+  .stat-value { font-size: 20px; }
+  .card { padding: 14px; border-radius: 12px; }
+  .card h3 { font-size: 11px; }
+  .canvas-wrap { height: 240px; }
+  .calendar { gap: 3px; }
+  .cal-cell { padding: 4px; aspect-ratio: 1 / 1; }
+  .cal-day { font-size: 10px; }
+  .cal-amt { font-size: 10px; }
+  .cal-head { font-size: 9px; padding: 4px 0; }
+  table { font-size: 12px; }
+  th, td { padding: 8px 6px; }
+  /* horizontal scroll for transaction table on mobile */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -14px; padding: 0 14px; }
+  .search { width: 100%; }
+  .section-title { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .click-hint { display: none; }
+  .modal-overlay { padding: 16px 8px; }
+  .modal { max-height: 92vh; border-radius: 14px; }
+  .modal-head { padding: 14px 16px; }
+  .modal-stats { padding: 10px 16px; gap: 14px; flex-wrap: wrap; }
+  .modal-stat .v { font-size: 16px; }
+  .modal-body { padding: 12px 16px; }
+  .bar-label { width: 100px; font-size: 12px; }
+  .bar-val { width: 70px; font-size: 12px; }
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  position: relative;
+}
+.card h3 {
+  font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-3); margin: 0 0 14px; font-weight: 600;
+}
+.stat-value { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+.stat-sub { color: var(--text-2); font-size: 12px; margin-top: 4px; }
+.section { margin-top: 28px; }
+.section-title {
+  font-size: 18px; font-weight: 600; margin-bottom: 14px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+canvas { max-width: 100%; }
+.canvas-wrap { position: relative; height: 320px; cursor: pointer; }
+.calendar {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-top: 10px;
+}
+.cal-head {
+  font-size: 11px; color: var(--text-3); text-align: center;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 6px 0;
+}
+.cal-cell {
+  aspect-ratio: 1.1 / 1;
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--card-2);
+  display: flex; flex-direction: column; justify-content: space-between;
+  font-size: 11px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: transform 0.1s ease, border-color 0.1s ease;
+  user-select: none;
+}
+.cal-cell.empty { background: transparent; border: none; cursor: default; }
+.cal-cell:hover:not(.empty) { transform: translateY(-1px); border-color: var(--border-strong); }
+.cal-cell.selected:not(.empty) { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.cal-cell.dim:not(.empty) { opacity: 0.4; }
+.cal-day { font-weight: 600; color: var(--text-2); }
+.cal-amt { font-weight: 600; font-size: 13px; }
+.cal-cell.heavy .cal-day, .cal-cell.heavy .cal-amt { color: white; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; padding: 10px 12px; font-weight: 500;
+     color: var(--text-3); font-size: 11px; text-transform: uppercase;
+     letter-spacing: 0.05em; border-bottom: 1px solid var(--border);
+     cursor: pointer; user-select: none; }
+th.sortable:hover { color: var(--text); }
+th.sortable .sort-arrow { display: inline-block; margin-left: 4px; opacity: 0.4; }
+th.sortable.active .sort-arrow { opacity: 1; color: var(--accent); }
+td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--card-2); }
+tr.clickable { cursor: pointer; }
+td.right, th.right { text-align: right; }
+td.num { font-variant-numeric: tabular-nums; }
+.tag {
+  display: inline-block; padding: 2px 8px;
+  border-radius: 999px; font-size: 11px; font-weight: 500;
+  background: var(--card-2); color: var(--text-2);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+.tag:hover { border-color: var(--border-strong); color: var(--text); }
+.tag-biz { background: rgba(96, 165, 250, 0.12); color: var(--blue); border-color: rgba(96, 165, 250, 0.25); }
+.tag-travel { background: rgba(192, 132, 252, 0.12); color: var(--purple); border-color: rgba(192, 132, 252, 0.25); }
+.search {
+  width: 240px;
+  background: var(--card-2); border: 1px solid var(--border);
+  color: var(--text); padding: 8px 12px; border-radius: 8px;
+  font-size: 13px; font-family: inherit;
+}
+.search:focus { outline: none; border-color: var(--accent); }
+.bar-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background 0.1s ease;
+  border-radius: 4px; margin: 0 -8px;
+  padding-left: 8px; padding-right: 8px;
+}
+.bar-row:last-child { border-bottom: none; }
+.bar-row:hover { background: var(--card-2); }
+.bar-label { width: 140px; font-size: 13px; color: var(--text); }
+.bar-track { flex: 1; height: 8px; background: var(--card-2); border-radius: 4px; overflow: hidden; }
+.bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); border-radius: 4px; }
+.bar-val { width: 90px; text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--text-2); }
+.footer { color: var(--text-3); font-size: 11px; margin-top: 40px; text-align: center; }
+.muted { color: var(--text-3); font-size: 12px; }
+
+/* Modal */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: none;
+  align-items: flex-start; justify-content: center;
+  padding: 16px 12px;
+  z-index: 100;
+  overflow-y: auto;
+}
+@media (min-width: 720px) {
+  .modal-overlay { padding: 60px 20px; }
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  width: 100%; max-width: 720px;
+  max-height: 90vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  overflow: hidden;
+}
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-title { font-size: 18px; font-weight: 600; }
+.modal-sub { font-size: 12px; color: var(--text-2); margin-top: 4px; }
+.modal-close {
+  background: transparent; border: none; color: var(--text-2);
+  cursor: pointer; font-size: 20px; padding: 4px 8px;
+  border-radius: 6px; transition: all 0.1s ease;
+  font-family: inherit;
+}
+.modal-close:hover { color: var(--text); background: var(--card-2); }
+.modal-body { padding: 16px 20px; overflow-y: auto; overflow-x: hidden; min-width: 0; }
+.modal-body * { max-width: 100%; }
+.modal-body table { table-layout: fixed; width: 100%; }
+.modal-body td, .modal-body th { word-break: break-word; overflow-wrap: anywhere; }
+.modal-body td.right, .modal-body th.right { white-space: nowrap; width: 1%; }
+@media (max-width: 480px) {
+  .modal-body { padding: 14px 14px; }
+}
+
+.tx-row { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.tx-row:last-child { border-bottom: none; }
+.tx-row-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.tx-row-left { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.tx-row-left > div:first-child { line-height: 1.35; }
+.tx-row-sub { font-size: 11px; margin-top: 2px; overflow-wrap: anywhere; }
+.tx-row-amt { white-space: nowrap; flex-shrink: 0; }
+.tx-items { margin-top: 6px; font-size: 12px; }
+.tx-item {
+  display: flex; gap: 8px;
+  padding: 3px 8px;
+  align-items: baseline;
+}
+.tx-item-name { flex: 1; min-width: 0; color: var(--text-2); overflow-wrap: anywhere; }
+.tx-item-amt { white-space: nowrap; flex-shrink: 0; color: var(--text-2); }
+.modal-stats {
+  display: flex; gap: 24px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card-2);
+}
+.modal-stat { display: flex; flex-direction: column; }
+.modal-stat .v { font-size: 20px; font-weight: 700; }
+.modal-stat .l { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.click-hint {
+  display: inline-block;
+  font-size: 10px; color: var(--text-3);
+  margin-left: 8px; padding: 1px 6px;
+  border: 1px solid var(--border); border-radius: 4px;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Expenses</h1>
+      <div class="subtitle" id="subtitle">April 2026 expenses</div>
+    </div>
+    <div class="muted">Generated 2026-04-30 15:51</div>
+  </header>
+
+  <div class="header-row">
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="everything">Everything <span class="count" id="count-everything"></span></button>
+      <button class="tab" data-tab="business">Business <span class="count" id="count-business"></span></button>
+      <button class="tab" data-tab="daily">Daily <span class="count" id="count-daily"></span></button>
+    </div>
+    <button class="search-btn" data-action="search-items">Search items</button>
+  </div>
+
+  <div id="tab-content"></div>
+
+  <div class="footer">JACK · April 2026</div>
+</div>
+
+<div class="modal-overlay" id="modal" onclick="if(event.target===this) closeModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="modalTitle"></div>
+        <div class="modal-sub" id="modalSub"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-stats" id="modalStats"></div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+const DATA = {"year": 2026, "month": 4, "month_name": "April", "days_in_month": 30, "expenses": [{"id": 92, "date": "2026-04-30", "merchant": "Mosaico Family", "items": [], "total": 11.5, "currency": "EUR", "category": "Other", "card": "Xhunaxhi - BBVA", "note": null, "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-30 12:58:46"}, {"id": 90, "date": "2026-04-30", "merchant": "Carrefour", "items": [{"name": "coca cola zero lata", "qty": 1.0, "unit_price": 0.95, "amount": 0.95, "canonical_name": "soft drink"}, {"name": "bonito crf granel", "qty": 1.0, "unit_price": 3.66, "amount": 3.66, "canonical_name": "fish"}, {"name": "tomate cherry", "qty": 2.0, "unit_price": 1.0, "amount": 2.0, "canonical_name": "tomato"}], "total": 6.61, "currency": "EUR", "category": "Groceries", "card": "Xhunaxhi - BBVA", "note": null, "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-30 12:57:53"}, {"id": 89, "date": "2026-04-30", "merchant": "My Protein", "items": [{"name": "myprotein impact whey protein", "qty": 1.0, "unit_price": 27.19, "amount": 27.19, "canonical_name": "protein"}, {"name": "shipping", "qty": 1.0, "unit_price": 3.49, "amount": 3.49, "canonical_name": "shipping"}], "total": 30.68, "currency": "EUR", "category": "Health", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-30 12:56:30"}, {"id": 88, "date": "2026-04-30", "merchant": "Norwegian", "items": [{"name": "Flight Fare", "qty": 1.0, "unit_price": 202.7, "amount": 202.7, "canonical_name": "flight"}, {"name": "Overhead cabin bag", "qty": 1.0, "unit_price": 24.0, "amount": 24.0, "canonical_name": "luggage"}], "total": 226.7, "currency": "EUR", "category": "Travel", "card": "Liam - Credit Card", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-30 12:41:39"}, {"id": 87, "date": "2026-04-30", "merchant": "Norwegian", "items": [{"name": "Flight Fare", "qty": 1.0, "unit_price": 349.1, "amount": 349.1, "canonical_name": "flight"}, {"name": "Checked bag", "qty": 1.0, "unit_price": 40.0, "amount": 40.0, "canonical_name": "luggage"}], "total": 389.1, "currency": "EUR", "category": "Travel", "card": "Liam - Credit Card", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-30 12:41:21"}, {"id": 86, "date": "2026-04-30", "merchant": "Open AI - ChatGPT subscription", "items": [], "total": 21.0, "currency": "EUR", "category": "Business", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": true, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-30 12:19:47"}, {"id": 85, "date": "2026-04-30", "merchant": "Pizza", "items": [], "total": 9.0, "currency": "EUR", "category": "Eating Out", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-30 12:17:53"}, {"id": 84, "date": "2026-04-30", "merchant": "Social Security Cost", "items": [], "total": 88.56, "currency": "EUR", "category": "Business", "card": "Liam - Santander", "note": "Social Security Cost", "user": "liam", "source": "jack", "is_business": true, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-30 12:17:15"}, {"id": 83, "date": "2026-04-30", "merchant": "Orange Bill", "items": [], "total": 62.25, "currency": "EUR", "category": "Utilities", "card": "Xhunaxhi - BBVA", "note": null, "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-30 06:38:46"}, {"id": 82, "date": "2026-04-30", "merchant": "La buena Vida", "items": [], "total": 5.8, "currency": "EUR", "category": "Drinks", "card": "Xhunaxhi - BBVA", "note": null, "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-30 06:37:11"}, {"id": 81, "date": "2026-04-30", "merchant": "Electricity bill", "items": [], "total": 64.66, "currency": "EUR", "category": "Utilities", "card": "Xhunaxhi - BBVA", "note": null, "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-30 06:36:46"}, {"id": 80, "date": "2026-04-29", "merchant": "Coviran", "items": [], "total": 2.5, "currency": "EUR", "category": "Groceries", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-29 10:26:22"}, {"id": 79, "date": "2026-04-28", "merchant": "TradingView", "items": [{"name": "Essential subscription", "qty": 1.0, "unit_price": 18.09, "amount": 18.09, "canonical_name": "subscription"}], "total": 18.09, "currency": "EUR", "category": "Business", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": true, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-28 09:13:23"}, {"id": 78, "date": "2026-04-27", "merchant": "Sqrups Granada Ronda", "items": [{"name": "actimel", "qty": 2.0, "unit_price": 1.0, "amount": 2.0, "canonical_name": "yogurt"}, {"name": "san miguel yakima valley ipa", "qty": 1.0, "unit_price": 0.5, "amount": 0.5, "canonical_name": "beer"}, {"name": "coup extracto cafe proteinas", "qty": 1.0, "unit_price": 2.25, "amount": 2.25, "canonical_name": "coffee"}, {"name": "jack daniels & coca cola", "qty": 1.0, "unit_price": 1.25, "amount": 1.25, "canonical_name": "spirits"}, {"name": "raimat costers del segre vino", "qty": 1.0, "unit_price": 1.98, "amount": 1.98, "canonical_name": "wine"}], "total": 7.98, "currency": "EUR", "category": "Drinks", "card": "Xhunaxhi - BBVA", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-27 17:11:44"}, {"id": 77, "date": "2026-04-27", "merchant": "Mercadona", "items": [{"name": "salsa de soja salada", "qty": 1.0, "unit_price": 1.2, "amount": 1.2, "canonical_name": "sauce"}, {"name": "ens.IV estaciones", "qty": 1.0, "unit_price": 0.85, "amount": 0.85, "canonical_name": "salad"}, {"name": "ternera extrajera", "qty": 1.0, "unit_price": 8.43, "amount": 8.43, "canonical_name": "beef"}, {"name": "burger m' vacun 1000g", "qty": 1.0, "unit_price": 10.8, "amount": 10.8, "canonical_name": "burger"}, {"name": "pechuga 2 und", "qty": 1.0, "unit_price": 6.73, "amount": 6.73, "canonical_name": "chicken"}, {"name": "lavavaj. todo en 1", "qty": 1.0, "unit_price": 7.9, "amount": 7.9, "canonical_name": "cleaning product"}, {"name": "q rallado fundir", "qty": 1.0, "unit_price": 2.1, "amount": 2.1, "canonical_name": "cheese"}, {"name": "griego ligero nat", "qty": 1.0, "unit_price": 1.8, "amount": 1.8, "canonical_name": "yogurt"}, {"name": "champión blan", "qty": 1.0, "unit_price": 2.2, "amount": 2.2, "canonical_name": "mushroom"}, {"name": "tortilla avena 6 un", "qty": 1.0, "unit_price": 1.8, "amount": 1.8, "canonical_name": "tortilla"}, {"name": "patata", "qty": 1.0, "unit_price": 1.9, "amount": 2.55, "canonical_name": "potato"}], "total": 46.07, "currency": "EUR", "category": "Groceries", "card": "Xhunaxhi - BBVA", "note": null, "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-27 17:02:32"}, {"id": 76, "date": "2026-04-27", "merchant": "Kebab", "items": [], "total": 6.0, "currency": "EUR", "category": "Eating Out", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-27 10:23:13"}, {"id": 75, "date": "2026-04-26", "merchant": "Carrefour", "items": [{"name": "cola carrefour 33cl", "qty": 1.0, "unit_price": 0.38, "amount": 0.38, "canonical_name": "soda"}, {"name": "aperitivos maiz ko", "qty": 1.0, "unit_price": 0.9, "amount": 0.9, "canonical_name": "snack"}, {"name": "salsa lea & perrin", "qty": 1.0, "unit_price": 3.79, "amount": 3.79, "canonical_name": "sauce"}, {"name": "boniato crf granel", "qty": 1.0, "unit_price": 3.26, "amount": 3.26, "canonical_name": "vegetable"}], "total": 8.33, "currency": "EUR", "category": "Groceries", "card": "Xhunaxhi - BBVA", "note": null, "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-26 18:55:45"}, {"id": 74, "date": "2026-04-26", "merchant": "La buena muerte hamburguesa", "items": [], "total": 30.0, "currency": "EUR", "category": "Eating Out", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-26 13:25:45"}, {"id": 73, "date": "2026-04-25", "merchant": "Kebab", "items": [], "total": 8.5, "currency": "EUR", "category": "Eating Out", "card": "Xhunaxhi - BBVA", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-25 21:55:33"}, {"id": 72, "date": "2026-04-25", "merchant": "Dalys Pub", "items": [], "total": 11.2, "currency": "EUR", "category": "Drinks", "card": "Liam - Santander", "note": "3x Small Guinnesses", "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-25 20:10:48"}, {"id": 71, "date": "2026-04-25", "merchant": "La Telefónica Restaurant", "items": [], "total": 86.0, "currency": "EUR", "category": "Eating Out", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-25 18:47:18"}, {"id": 70, "date": "2026-04-24", "merchant": "Anthropic", "items": [{"name": "one-time credit purchase", "qty": 1.0, "unit_price": 24.0, "amount": 24.0, "canonical_name": "service"}], "total": 24.2, "currency": "EUR", "category": "Business", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": true, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-24 17:13:43"}, {"id": 69, "date": "2026-04-24", "merchant": "Mercadona", "items": [{"name": "blueberries", "qty": 1.0, "unit_price": 2.15, "amount": 2.15, "canonical_name": "fruit"}, {"name": "chicken", "qty": 1.0, "unit_price": 5.96, "amount": 5.96, "canonical_name": "chicken"}, {"name": "yoghurt", "qty": 12.0, "unit_price": 4.95, "amount": 4.95, "canonical_name": "yogurt"}, {"name": "caramel pudding", "qty": 1.0, "unit_price": 1.9, "amount": 1.9, "canonical_name": "caramel pudding"}, {"name": "natural protein", "qty": 2.0, "unit_price": 1.4, "amount": 2.8, "canonical_name": "protein"}], "total": 17.76, "currency": "EUR", "category": "Groceries", "card": "Xhunaxhi - BBVA", "note": null, "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-24 16:06:50"}, {"id": 68, "date": "2026-04-24", "merchant": "Apify Technologies", "items": [{"name": "Starter plan", "qty": 1.0, "unit_price": 35.0, "amount": 35.0, "canonical_name": "subscription"}], "total": 35.09, "currency": "EUR", "category": "Business", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": true, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-24 09:39:40"}, {"id": 66, "date": "2026-04-23", "merchant": "Amazon", "items": [], "total": 33.05, "currency": "EUR", "category": "Shopping", "card": "Xhunaxhi - BBVA", "note": null, "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-23 20:43:06"}, {"id": 65, "date": "2026-04-23", "merchant": "Super Kedi", "items": [], "total": 4.5, "currency": "EUR", "category": "Groceries", "card": "Xhunaxhi - BBVA", "note": "Sriracha", "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-23 20:42:29"}, {"id": 64, "date": "2026-04-23", "merchant": "Kebab", "items": [], "total": 10.0, "currency": "EUR", "category": "Eating Out", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-23 19:24:44"}, {"id": 63, "date": "2026-04-23", "merchant": "Drinks", "items": [], "total": 2.0, "currency": "EUR", "category": "Drinks", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-23 19:20:08"}, {"id": 62, "date": "2026-04-22", "merchant": "Pepco", "items": [{"name": "utensils", "qty": 1.0, "unit_price": 6.0, "amount": 6.0, "canonical_name": "kitchen utensils"}, {"name": "bag", "qty": 1.0, "unit_price": 0.4, "amount": 0.4, "canonical_name": "bag"}, {"name": "plastic table", "qty": 1.0, "unit_price": 0.8, "amount": 0.8, "canonical_name": "plastic table"}, {"name": "hangers", "qty": 2.0, "unit_price": 1.3, "amount": 2.6, "canonical_name": "hangers"}, {"name": "pot", "qty": 1.0, "unit_price": 1.3, "amount": 1.3, "canonical_name": "pot"}, {"name": "bowl", "qty": 1.0, "unit_price": 2.3, "amount": 2.3, "canonical_name": "bowl"}], "total": 13.4, "currency": "EUR", "category": "Shopping", "card": "Xhunaxhi - BBVA", "note": null, "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-22 19:54:02"}, {"id": 60, "date": "2026-04-21T19:25:00", "merchant": "Mercadona", "items": [{"name": "milk", "qty": 2.0, "unit_price": 1.15, "amount": 2.3, "canonical_name": "milk"}, {"name": "burger", "qty": 2.0, "unit_price": 5.5, "amount": 11.0, "canonical_name": "burger"}, {"name": "pechuga familiar", "qty": 1.0, "unit_price": 5.75, "amount": 5.75, "canonical_name": "chicken"}, {"name": "mix frutos rojos", "qty": 1.0, "unit_price": 1.9, "amount": 1.9, "canonical_name": "mix fruits"}, {"name": "pepino holandes", "qty": 1.0, "unit_price": 1.09, "amount": 1.09, "canonical_name": "cucumber"}, {"name": "tortilla avena", "qty": 2.0, "unit_price": 1.85, "amount": 3.7, "canonical_name": "oat tortilla"}, {"name": "ajo seco", "qty": 1.0, "unit_price": 1.85, "amount": 1.85, "canonical_name": "garlic"}, {"name": "cebolla tubo", "qty": 1.0, "unit_price": 2.4, "amount": 2.4, "canonical_name": "onion"}, {"name": "chia", "qty": 1.0, "unit_price": 1.45, "amount": 1.45, "canonical_name": "chia"}, {"name": "gel oliva", "qty": 1.0, "unit_price": 1.6, "amount": 1.6, "canonical_name": "gel"}, {"name": "gelatina frutos rojo", "qty": 1.0, "unit_price": 2.0, "amount": 2.0, "canonical_name": "gelatin"}, {"name": "griego ligero nat", "qty": 2.0, "unit_price": 2.2, "amount": 4.4, "canonical_name": "yogurt"}, {"name": "pimenton picante", "qty": 1.0, "unit_price": 1.35, "amount": 1.35, "canonical_name": "spices"}, {"name": "miel de flores", "qty": 1.0, "unit_price": 4.9, "amount": 4.9, "canonical_name": "honey"}, {"name": "banana", "qty": 1.0, "unit_price": 1.55, "amount": 1.25, "canonical_name": "banana"}, {"name": "batata granel", "qty": 1.0, "unit_price": 3.35, "amount": 4.13, "canonical_name": "sweet potato"}], "total": 53.57, "currency": "EUR", "category": "Groceries", "card": "Xhunaxhi - BBVA", "note": null, "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-21 17:51:12"}, {"id": 61, "date": "2026-04-21", "merchant": "Mercadona", "items": [], "total": 3.6, "currency": "EUR", "category": "Groceries", "card": "Xhunaxhi - BBVA", "note": "Grapes", "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-21 17:51:42"}, {"id": 59, "date": "2026-04-21", "merchant": "Mercadona", "items": [], "total": 24.54, "currency": "EUR", "category": "Groceries", "card": "Xhunaxhi - BBVA", "note": null, "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-21 09:37:21"}, {"id": 58, "date": "2026-04-21", "merchant": "Coviran", "items": [], "total": 2.16, "currency": "EUR", "category": "Groceries", "card": "Xhunaxhi - BBVA", "note": null, "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-21 09:35:32"}, {"id": 57, "date": "2026-04-21", "merchant": "Sanitas Seguro", "items": [], "total": 74.52, "currency": "EUR", "category": "Insurance", "card": "Xhunaxhi - BBVA", "note": null, "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-21 09:34:06"}, {"id": 56, "date": "2026-04-21", "merchant": "Laser hair removal", "items": [], "total": 9.0, "currency": "EUR", "category": "Health", "card": "Xhunaxhi - BBVA", "note": null, "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-21 09:32:41"}, {"id": 55, "date": "2026-04-20", "merchant": "Coviran", "items": [], "total": 3.7, "currency": "EUR", "category": "Groceries", "card": "Xhunaxhi - BBVA", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-20 17:46:05"}, {"id": 54, "date": "2026-04-20", "merchant": "Farmacia", "items": [], "total": 4.0, "currency": "EUR", "category": "Health", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-20 17:45:44"}, {"id": 53, "date": "2026-04-18", "merchant": "Helados La Abuela Reyes", "items": [], "total": 8.8, "currency": "EUR", "category": "Eating Out", "card": "Xhunaxhi - BBVA", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-18 18:59:57"}, {"id": 52, "date": "2026-04-18", "merchant": "ZEEMAN Textielsupers SLU", "items": [{"name": "sunglasses", "qty": 1.0, "unit_price": 2.99, "amount": 2.99, "canonical_name": "sunglasses"}, {"name": "toothpaste", "qty": 1.0, "unit_price": 1.79, "amount": 1.79, "canonical_name": "toothpaste"}, {"name": "hair accessories", "qty": 1.0, "unit_price": 0.99, "amount": 0.99, "canonical_name": "hair accessories"}, {"name": "panties", "qty": 1.0, "unit_price": 0.99, "amount": 0.99, "canonical_name": "panties"}, {"name": "organizer", "qty": 1.0, "unit_price": 2.99, "amount": 2.99, "canonical_name": "organizer"}, {"name": "umbrella", "qty": 1.0, "unit_price": 4.49, "amount": 4.49, "canonical_name": "umbrella"}], "total": 14.24, "currency": "EUR", "category": "Household", "card": "Xhunaxhi - BBVA", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-18 17:45:50"}, {"id": 51, "date": "2026-04-17", "merchant": "Farmacia", "items": [{"name": "AUGMENTINE 875 MG", "qty": 1.0, "unit_price": 14.3, "amount": 14.3, "canonical_name": "medication"}, {"name": "ENANTIVM 25 MG 20", "qty": 1.0, "unit_price": 4.0, "amount": 4.0, "canonical_name": "medication"}], "total": 18.3, "currency": "EUR", "category": "Health", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-17 20:46:15"}, {"id": 50, "date": "2026-04-17", "merchant": "Anthropic", "items": [{"name": "Max plan", "qty": 1.0, "unit_price": 90.0, "amount": 90.0, "canonical_name": "subscription"}], "total": 90.0, "currency": "EUR", "category": "Business", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": true, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-17 14:23:28"}, {"id": 49, "date": "2026-04-17", "merchant": "Instantly", "items": [{"name": "Growth Plan", "qty": 1.0, "unit_price": 39.0, "amount": 39.0, "canonical_name": "subscription"}], "total": 39.0, "currency": "EUR", "category": "Business", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": true, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-17 14:22:57"}, {"id": 47, "date": "2026-04-17", "merchant": "La teteria cafe", "items": [], "total": 15.0, "currency": "EUR", "category": "Drinks", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-17 08:47:19"}, {"id": 46, "date": "2026-04-17", "merchant": "Blueberries", "items": [], "total": 4.35, "currency": "EUR", "category": "Groceries", "card": "Xhunaxhi - BBVA", "note": null, "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-17 06:26:09"}, {"id": 45, "date": "2026-04-17", "merchant": "Sanitas Seguro", "items": [], "total": 114.99, "currency": "EUR", "category": "Insurance", "card": "Xhunaxhi - BBVA", "note": null, "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-17 06:24:46"}, {"id": 44, "date": "2026-04-16", "merchant": "TKO Tacos", "items": [{"name": "salsa verde", "qty": 1.0, "unit_price": 0.6, "amount": 0.6, "canonical_name": "sauce"}, {"name": "coca cola zero", "qty": 1.0, "unit_price": 2.65, "amount": 2.65, "canonical_name": "soda"}, {"name": "taco de arrachera", "qty": 1.0, "unit_price": 1.95, "amount": 1.95, "canonical_name": "taco"}, {"name": "taco de tinga de po", "qty": 2.0, "unit_price": 1.0, "amount": 2.0, "canonical_name": "taco"}, {"name": "taco al pastor", "qty": 2.0, "unit_price": 1.0, "amount": 2.0, "canonical_name": "taco"}], "total": 9.2, "currency": "EUR", "category": "Eating Out", "card": "Xhunaxhi - BBVA", "note": null, "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-16 13:39:46"}, {"id": 43, "date": "2026-04-16", "merchant": "Supermercado Dornajo", "items": [{"name": "napolitanas chocolate", "qty": 1.0, "unit_price": 1.95, "amount": 1.95, "canonical_name": "pastry"}, {"name": "alhambra espec", "qty": 1.0, "unit_price": 1.4, "amount": 2.8, "canonical_name": "beer"}], "total": 4.75, "currency": "EUR", "category": "Groceries", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-16 07:07:10"}, {"id": 42, "date": "2026-04-15", "merchant": "El Bar De Fede", "items": [{"name": "tubo", "qty": 1.0, "unit_price": 4.0, "amount": 4.0, "canonical_name": "beer"}, {"name": "tinto de verano limon", "qty": 1.0, "unit_price": 3.5, "amount": 3.5, "canonical_name": "wine"}, {"name": "nestea", "qty": 1.0, "unit_price": 3.5, "amount": 3.5, "canonical_name": "tea"}], "total": 11.0, "currency": "EUR", "category": "Drinks", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-15 20:18:12"}, {"id": 41, "date": "2026-04-15", "merchant": "Zara", "items": [{"name": "camisa", "qty": 1.0, "unit_price": 39.95, "amount": 39.95, "canonical_name": "shirt"}], "total": 39.95, "currency": "EUR", "category": "Shopping", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-15 17:11:05"}, {"id": 40, "date": "2026-04-15", "merchant": "Carrefour", "items": [{"name": "Tortilla Integral", "qty": 1.0, "unit_price": 1.96, "amount": 1.96, "canonical_name": "tortilla"}, {"name": "Leche Fresca Semi", "qty": 2.0, "unit_price": 1.25, "amount": 2.5, "canonical_name": "milk"}], "total": 4.46, "currency": "EUR", "category": "Groceries", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-15 14:39:46"}, {"id": 39, "date": "2026-04-15", "merchant": "Aldi", "items": [], "total": 3.02, "currency": "EUR", "category": "Groceries", "card": "Xhunaxhi - BBVA", "note": "Boniato ", "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-15 13:56:56"}, {"id": 38, "date": "2026-04-15", "merchant": "El Peruano", "items": [], "total": 4.0, "currency": "EUR", "category": "Drinks", "card": "Xhunaxhi - BBVA", "note": "I paid 12 euros but Homero gave me 10 euros in cash ", "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-15 13:54:42"}, {"id": 37, "date": "2026-04-14", "merchant": "Oum Kalsum", "items": [{"name": "coca cola", "qty": 2.0, "unit_price": 3.3, "amount": 6.6, "canonical_name": "soft drink"}, {"name": "nestea", "qty": 2.0, "unit_price": 3.3, "amount": 6.6, "canonical_name": "soft drink"}, {"name": "caña", "qty": 2.0, "unit_price": 3.2, "amount": 6.4, "canonical_name": "beer"}], "total": 19.6, "currency": "EUR", "category": "Drinks", "card": "Liam - Credit Card", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-14 20:52:04"}, {"id": 36, "date": "2026-04-14", "merchant": "Coviran", "items": [{"name": "Salsa Brava Orlan", "qty": 1.0, "unit_price": 1.53, "amount": 1.53, "canonical_name": "sauce"}], "total": 1.53, "currency": "EUR", "category": "Groceries", "card": "Liam - Credit Card", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-14 13:28:05"}, {"id": 33, "date": "2026-04-12T12:43:59", "merchant": "Bazar Alarcon", "items": [{"name": "Percha Con Pinza", "qty": 3.0, "unit_price": 1.95, "amount": 5.85, "canonical_name": null}, {"name": "Fiambrea", "qty": 1.0, "unit_price": 3.5, "amount": 3.5, "canonical_name": null}], "total": 9.35, "currency": "EUR", "category": "Household", "card": "Xhunaxhi - BBVA", "note": null, "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-12 10:45:06"}, {"id": 35, "date": "2026-04-12", "merchant": "Carrefour", "items": [{"name": "Cola Carrefour 2L", "qty": 1.0, "unit_price": 0.91, "amount": 0.91, "canonical_name": null}, {"name": "Leche Fresca Entera", "qty": 1.0, "unit_price": 2.65, "amount": 2.65, "canonical_name": null}, {"name": "Banana Granel", "qty": 1.0, "unit_price": 0.98, "amount": 0.98, "canonical_name": null}, {"name": "Pimiento Tricolor", "qty": 1.0, "unit_price": 2.35, "amount": 2.35, "canonical_name": null}], "total": 6.89, "currency": "EUR", "category": "Groceries", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-12 19:21:58"}, {"id": 34, "date": "2026-04-12", "merchant": "Ealt Alsina Granada", "items": [{"name": "Family 2 Abril 2026", "qty": 1.0, "unit_price": 88.0, "amount": 88.0, "canonical_name": null}, {"name": "Recargo Recibo", "qty": 1.0, "unit_price": 3.0, "amount": 3.0, "canonical_name": null}], "total": 91.0, "currency": "EUR", "category": "Health", "card": "Liam - Credit Card", "note": "Gym subscription ", "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-12 10:51:56"}, {"id": 32, "date": "2026-04-12", "merchant": "Mercadona", "items": [{"name": "Pechuga", "qty": 2.0, "unit_price": 4.75, "amount": 9.5, "canonical_name": "chicken"}, {"name": "Mix Frutos Rojos", "qty": 1.0, "unit_price": 5.4, "amount": 5.4, "canonical_name": null}, {"name": "Picada de Vacuno", "qty": 1.0, "unit_price": 5.4, "amount": 5.4, "canonical_name": null}, {"name": "Tortilla Avena", "qty": 1.0, "unit_price": 1.8, "amount": 1.8, "canonical_name": null}, {"name": "Discos de Sem Redondo", "qty": 1.0, "unit_price": 1.8, "amount": 1.8, "canonical_name": null}, {"name": "Limóncello", "qty": 1.0, "unit_price": 1.85, "amount": 1.85, "canonical_name": null}, {"name": "Proteína 0% Natural", "qty": 1.0, "unit_price": 1.4, "amount": 1.4, "canonical_name": null}, {"name": "Ens.IV Estaciones", "qty": 1.0, "unit_price": 1.9, "amount": 1.9, "canonical_name": null}, {"name": "Filete de Trucha", "qty": 1.0, "unit_price": 4.2, "amount": 4.2, "canonical_name": "fish"}, {"name": "Atún Claro Natural", "qty": 1.0, "unit_price": 3.2, "amount": 3.2, "canonical_name": null}, {"name": "Z.Naranja 330ml Ref.", "qty": 1.0, "unit_price": 1.53, "amount": 1.53, "canonical_name": null}, {"name": "Proteína Arándanos", "qty": 1.0, "unit_price": 2.25, "amount": 2.25, "canonical_name": null}, {"name": "Aceite Virgen Extra", "qty": 1.0, "unit_price": 6.98, "amount": 6.98, "canonical_name": null}, {"name": "Filete Salmón", "qty": 1.0, "unit_price": 7.16, "amount": 7.16, "canonical_name": "fish"}, {"name": "Q Rallado Fundir", "qty": 1.0, "unit_price": 2.5, "amount": 2.5, "canonical_name": null}, {"name": "24 Huevos Frescos", "qty": 1.0, "unit_price": 5.6, "amount": 5.6, "canonical_name": null}, {"name": "Salsa de Soja Salada", "qty": 1.0, "unit_price": 1.7, "amount": 1.7, "canonical_name": null}, {"name": "Ketchup Zero", "qty": 1.0, "unit_price": 2.3, "amount": 2.3, "canonical_name": null}, {"name": "Higiénico Doble Roll", "qty": 1.0, "unit_price": 2.5, "amount": 2.5, "canonical_name": null}, {"name": "Toallita Bebé Aqua", "qty": 1.0, "unit_price": 0.94, "amount": 0.94, "canonical_name": null}, {"name": "Cebolla", "qty": 1.0, "unit_price": 4.18, "amount": 4.18, "canonical_name": null}, {"name": "Actimel Natural 0%", "qty": 1.0, "unit_price": 1.6, "amount": 1.6, "canonical_name": null}, {"name": "Pavo a Tacos", "qty": 1.0, "unit_price": 1.22, "amount": 1.22, "canonical_name": "turkey"}, {"name": "Pepino Holandés", "qty": 1.0, "unit_price": 1.22, "amount": 1.22, "canonical_name": null}, {"name": "Griego Ligero Nat", "qty": 1.0, "unit_price": 2.3, "amount": 2.3, "canonical_name": null}, {"name": "Rollo Hogar Doble", "qty": 1.0, "unit_price": 2.3, "amount": 2.3, "canonical_name": null}, {"name": "Patata", "qty": 0.694, "unit_price": 1.9, "amount": 1.32, "canonical_name": null}, {"name": "Calabacín Verde", "qty": 0.498, "unit_price": 1.3, "amount": 0.65, "canonical_name": null}], "total": 98.38, "currency": "EUR", "category": "Groceries", "card": "Xhunaxhi - BBVA", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-12 09:58:18"}, {"id": 29, "date": "2026-04-11", "merchant": "Kebab", "items": [{"name": "Griego Gyros Pollo", "qty": 2.0, "unit_price": 6.0, "amount": 12.0, "canonical_name": null}], "total": 12.0, "currency": "EUR", "category": "Eating Out", "card": "Liam - Credit Card", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-11 19:56:22"}, {"id": 28, "date": "2026-04-11", "merchant": "Carrefour", "items": [{"name": "Cola Carrefour 2L", "qty": 1.0, "unit_price": 0.91, "amount": 0.91, "canonical_name": null}, {"name": "Limon", "qty": 1.0, "unit_price": 0.44, "amount": 0.44, "canonical_name": null}, {"name": "Tomate Cherry", "qty": 1.0, "unit_price": 1.0, "amount": 1.0, "canonical_name": null}, {"name": "Big Tolipe Dark", "qty": 1.0, "unit_price": 1.49, "amount": 1.49, "canonical_name": null}], "total": 3.84, "currency": "EUR", "category": "Groceries", "card": "Xhunaxhi - BBVA", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-11 19:06:58"}, {"id": 26, "date": "2026-04-10", "merchant": "Snacks", "items": [], "total": 1.7, "currency": "EUR", "category": "Groceries", "card": "Liam - Credit Card", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-10 20:47:56"}, {"id": 25, "date": "2026-04-10", "merchant": "Reverso Gastro-Bar", "items": [{"name": "Dry Martini", "qty": 1.0, "unit_price": 4.9, "amount": 4.9, "canonical_name": null}, {"name": "Aperol Spritz", "qty": 1.0, "unit_price": 4.9, "amount": 4.9, "canonical_name": null}], "total": 9.8, "currency": "EUR", "category": "Drinks", "card": "Liam - Credit Card", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-10 20:43:20"}, {"id": 24, "date": "2026-04-10", "merchant": "Carrefour", "items": [{"name": "Leche Fresca CRF 1L", "qty": 1.0, "unit_price": 1.15, "amount": 1.15, "canonical_name": null}, {"name": "Aguacate Bandeja", "qty": 1.0, "unit_price": 3.71, "amount": 3.71, "canonical_name": null}, {"name": "Bonito CRF Granel", "qty": 1.0, "unit_price": 6.78, "amount": 6.78, "canonical_name": null}, {"name": "Tomate Cherry", "qty": 1.0, "unit_price": 1.0, "amount": 1.0, "canonical_name": null}, {"name": "Preparado Vacuno Sup", "qty": 1.0, "unit_price": 5.49, "amount": 5.49, "canonical_name": null}], "total": 18.13, "currency": "EUR", "category": "Groceries", "card": "Xhunaxhi - BBVA", "note": null, "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-10 11:28:38"}, {"id": 23, "date": "2026-04-09T21:30:00", "merchant": "Aldi", "items": [{"name": "Queso FRSC. Granulado", "qty": 2.0, "unit_price": 3.45, "amount": 6.9, "canonical_name": null}, {"name": "Actimel 0% Pack", "qty": 2.0, "unit_price": 3.99, "amount": 7.98, "canonical_name": null}, {"name": "Atún Claro Natural", "qty": 3.0, "unit_price": 4.05, "amount": 12.15, "canonical_name": null}], "total": 11.49, "currency": "EUR", "category": "Groceries", "card": "Liam - Credit Card", "note": null, "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-09 20:28:34"}, {"id": 22, "date": "2026-04-09", "merchant": "Finnish Government", "items": [], "total": 47.0, "currency": "EUR", "category": "Other", "card": "Liam - Credit Card", "note": "Late payment", "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-09 16:50:48"}, {"id": 20, "date": "2026-04-09", "merchant": "Carrefour", "items": [], "total": 3.0, "currency": "EUR", "category": "Groceries", "card": "Liam - Credit Card", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-09 16:48:49"}, {"id": 19, "date": "2026-04-08", "merchant": "Pizzeria Garo", "items": [{"name": "Porciones", "qty": 9.0, "unit_price": 1.5, "amount": 13.5, "canonical_name": null}], "total": 13.5, "currency": "EUR", "category": "Eating Out", "card": "Liam - Credit Card", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-08 17:57:28"}, {"id": 18, "date": "2026-04-07", "merchant": "Cafeteria - Bar - Mundisalado", "items": [{"name": "Café o Infusión", "qty": 3.0, "unit_price": 1.6, "amount": 4.8, "canonical_name": null}, {"name": "Delicatesen", "qty": 2.0, "unit_price": 4.8, "amount": 9.6, "canonical_name": null}, {"name": "Gourmet", "qty": 1.0, "unit_price": 4.4, "amount": 4.4, "canonical_name": null}], "total": 18.8, "currency": "EUR", "category": "Eating Out", "card": "Liam - Credit Card", "note": "With parents", "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-07 06:59:12"}, {"id": 17, "date": "2026-04-06", "merchant": "Nails", "items": [], "total": 70.0, "currency": "EUR", "category": "Other", "card": "Xhunaxhi - BBVA", "note": "Christa and Xhunaxhi", "user": "xhunaxhi", "source": "loreta", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-06 12:43:38"}, {"id": 16, "date": "2026-04-06", "merchant": "Mosaico T.T", "items": [{"name": "Bolsa Mediana", "qty": 4.0, "unit_price": 2.0, "amount": 8.0, "canonical_name": null}], "total": 8.25, "currency": "EUR", "category": "Shopping", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-06 08:38:34"}, {"id": 15, "date": "2026-04-05", "merchant": "CoCo Bubble Tea", "items": [{"name": "Mango Yakult", "qty": 1.0, "unit_price": 6.4, "amount": 6.4, "canonical_name": null}, {"name": "Leche fresca con Tapioca", "qty": 1.0, "unit_price": 5.9, "amount": 5.9, "canonical_name": null}], "total": 12.3, "currency": "EUR", "category": "Eating Out", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-05 15:31:27"}, {"id": 14, "date": "2026-04-05", "merchant": "TKO Tacos", "items": [{"name": "Michelada + Importa", "qty": 3.0, "unit_price": 1.3, "amount": 3.9, "canonical_name": null}, {"name": "XX", "qty": 1.0, "unit_price": 3.45, "amount": 3.45, "canonical_name": null}, {"name": "Margarita", "qty": 1.0, "unit_price": 5.0, "amount": 5.0, "canonical_name": null}, {"name": "Margarita de Sabor Maracuyá", "qty": 1.0, "unit_price": 6.65, "amount": 6.65, "canonical_name": null}, {"name": "Nombre", "qty": 1.0, "unit_price": 1.0, "amount": 1.0, "canonical_name": null}, {"name": "Dos Salsas", "qty": 1.0, "unit_price": 1.0, "amount": 1.0, "canonical_name": null}, {"name": "Taco de Lengua", "qty": 3.0, "unit_price": 1.95, "amount": 5.85, "canonical_name": null}, {"name": "Taco al Pastor", "qty": 5.0, "unit_price": 1.0, "amount": 5.0, "canonical_name": null}, {"name": "Taco de Cochinita P", "qty": 5.0, "unit_price": 1.0, "amount": 5.0, "canonical_name": null}, {"name": "Taco de Suadero", "qty": 5.0, "unit_price": 1.0, "amount": 5.0, "canonical_name": null}, {"name": "Taco de Tinga de Po", "qty": 5.0, "unit_price": 1.0, "amount": 5.0, "canonical_name": null}], "total": 52.75, "currency": "EUR", "category": "Eating Out", "card": "Liam - Santander", "note": "Parents dinner", "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-05 10:24:51"}, {"id": 12, "date": "2026-04-04", "merchant": "Drinks", "items": [], "total": 2.0, "currency": "EUR", "category": "Other", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-04 13:41:34"}, {"id": 11, "date": "2026-04-04", "merchant": "Haircut for Liam", "items": [], "total": 14.0, "currency": "EUR", "category": "Other", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-04 09:01:53"}, {"id": 10, "date": "2026-04-04", "merchant": "Oum Kalsum", "items": [{"name": "Caña", "qty": 1.0, "unit_price": null, "amount": 3.2, "canonical_name": null}, {"name": "Caña", "qty": 1.0, "unit_price": null, "amount": 3.2, "canonical_name": null}, {"name": "Tinto Verano", "qty": 1.0, "unit_price": null, "amount": 3.0, "canonical_name": null}, {"name": "Tinto Verano", "qty": 1.0, "unit_price": null, "amount": 3.0, "canonical_name": null}, {"name": "Tinto Verano", "qty": 1.0, "unit_price": null, "amount": 3.0, "canonical_name": null}], "total": 15.4, "currency": "EUR", "category": "Drinks", "card": "Liam - Santander", "note": "Parents tapas", "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": true, "created_at": "2026-04-04 08:16:56"}, {"id": 8, "date": "2026-04-03", "merchant": "Carrefour", "items": [], "total": 10.0, "currency": "EUR", "category": "Groceries", "card": "Xhunaxhi - BBVA", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-03 18:28:36"}, {"id": 7, "date": "2026-04-03", "merchant": "100 Montaditos, tapas", "items": [], "total": 28.0, "currency": "EUR", "category": "Eating Out", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": false, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-03 15:15:14"}, {"id": 6, "date": "2026-04-03", "merchant": "Perplexity API", "items": [], "total": 10.0, "currency": "EUR", "category": "Business", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": true, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-03 15:14:55"}, {"id": 5, "date": "2026-04-03", "merchant": "Coworking office", "items": [], "total": 165.0, "currency": "EUR", "category": "Business", "card": "Liam - Santander", "note": null, "user": "liam", "source": "jack", "is_business": true, "receipt_photo_path": null, "ai_extracted": false, "created_at": "2026-04-03 15:13:47"}]};
+const FOOD = {"groups": {"non_alcohol": 5.763400236127509, "fish": 25.736364682033738, "vegetables": 45.37847364157263, "sauces": 18.707403378546903, "red_meat": 42.41034596814035, "poultry": 31.13077784899979, "non_food": 9.52890626781864, "dairy": 34.76335744313153, "carbs": 13.332285625145083, "snacks": 0.9, "fruit": 17.072268594463374, "sweets": 11.087771685921286, "alcohol_at_home": 2.8, "other": 16.694181818181814, "eggs": 6.504462809917355}, "items_by_group": {"non_alcohol": [{"name": "coca cola zero lata", "canonical": "soft drink", "amount": 0.95, "merchant": "Carrefour", "date": "2026-04-30"}, {"name": "cola carrefour 33cl", "canonical": "soda", "amount": 0.38, "merchant": "Carrefour", "date": "2026-04-26"}, {"name": "Cola Carrefour 2L", "canonical": "", "amount": 0.91, "merchant": "Carrefour", "date": "2026-04-12"}, {"name": "Proteína Arándanos", "canonical": "", "amount": 2.6134002361275086, "merchant": "Mercadona", "date": "2026-04-12"}, {"name": "Cola Carrefour 2L", "canonical": "", "amount": 0.91, "merchant": "Carrefour", "date": "2026-04-11"}], "fish": [{"name": "bonito crf granel", "canonical": "fish", "amount": 3.66, "merchant": "Carrefour", "date": "2026-04-30"}, {"name": "Filete de Trucha", "canonical": "fish", "amount": 4.8783471074380165, "merchant": "Mercadona", "date": "2026-04-12"}, {"name": "Atún Claro Natural", "canonical": "", "amount": 3.7168358913813457, "merchant": "Mercadona", "date": "2026-04-12"}, {"name": "Filete Salmón", "canonical": "fish", "amount": 8.31642030696576, "merchant": "Mercadona", "date": "2026-04-12"}, {"name": "Atún Claro Natural", "canonical": "", "amount": 5.164761376248612, "merchant": "Aldi", "date": "2026-04-09"}], "vegetables": [{"name": "tomate cherry", "canonical": "tomato", "amount": 2.0, "merchant": "Carrefour", "date": "2026-04-30"}, {"name": "ens.IV estaciones", "canonical": "salad", "amount": 0.8446829163071614, "merchant": "Mercadona", "date": "2026-04-27"}, {"name": "champión blan", "canonical": "mushroom", "amount": 2.186238136324418, "merchant": "Mercadona", "date": "2026-04-27"}, {"name": "patata", "canonical": "potato", "amount": 2.5340487489214842, "merchant": "Mercadona", "date": "2026-04-27"}, {"name": "boniato crf granel", "canonical": "vegetable", "amount": 3.26, "merchant": "Carrefour", "date": "2026-04-26"}, {"name": "pepino holandes", "canonical": "cucumber", "amount": 1.1433581358919132, "merchant": "Mercadona", "date": "2026-04-21"}, {"name": "ajo seco", "canonical": "garlic", "amount": 1.940561973761504, "merchant": "Mercadona", "date": "2026-04-21"}, {"name": "cebolla tubo", "canonical": "onion", "amount": 2.517485803798708, "merchant": "Mercadona", "date": "2026-04-21"}, {"name": "batata granel", "canonical": "sweet potato", "amount": 4.332173487370277, "merchant": "Mercadona", "date": "2026-04-21"}, {"name": "Pimiento Tricolor", "canonical": "", "amount": 2.35, "merchant": "Carrefour", "date": "2026-04-12"}, {"name": "Salsa de Soja Salada", "canonical": "", "amount": 1.9745690672963399, "merchant": "Mercadona", "date": "2026-04-12"}, {"name": "Cebolla", "canonical": "", "amount": 4.8551168831168825, "merchant": "Mercadona", "date": "2026-04-12"}, {"name": "Pepino Holandés", "canonical": "", "amount": 1.417043683589138, "merchant": "Mercadona", "date": "2026-04-12"}, {"name": "Patata", "canonical": "", "amount": 1.5331948051948052, "merchant": "Mercadona", "date": "2026-04-12"}, {"name": "Tomate Cherry", "canonical": "", "amount": 1.0, "merchant": "Carrefour", "date": "2026-04-11"}, {"name": "Aguacate Bandeja", "canonical": "", "amount": 3.71, "merchant": "Carrefour", "date": "2026-04-10"}, {"name": "Bonito CRF Granel", "canonical": "", "amount": 6.78, "merchant": "Carrefour", "date": "2026-04-10"}, {"name": "Tomate Cherry", "canonical": "", "amount": 1.0, "merchant": "Carrefour", "date": "2026-04-10"}], "sauces": [{"name": "salsa de soja salada", "canonical": "sauce", "amount": 1.1924935289042278, "merchant": "Mercadona", "date": "2026-04-27"}, {"name": "salsa lea & perrin", "canonical": "sauce", "amount": 3.79, "merchant": "Carrefour", "date": "2026-04-26"}, {"name": "pimenton picante", "canonical": "spices", "amount": 1.4160857646367733, "merchant": "Mercadona", "date": "2026-04-21"}, {"name": "Salsa Brava Orlan", "canonical": "sauce", "amount": 1.53, "merchant": "Coviran", "date": "2026-04-14"}, {"name": "Aceite Virgen Extra", "canonical": "", "amount": 8.10734828807556, "merchant": "Mercadona", "date": "2026-04-12"}, {"name": "Ketchup Zero", "canonical": "", "amount": 2.6714757969303418, "merchant": "Mercadona", "date": "2026-04-12"}], "red_meat": [{"name": "ternera extrajera", "canonical": "beef", "amount": 8.3772670405522, "merchant": "Mercadona", "date": "2026-04-27"}, {"name": "burger m' vacun 1000g", "canonical": "burger", "amount": 10.732441760138052, "merchant": "Mercadona", "date": "2026-04-27"}, {"name": "burger", "canonical": "burger", "amount": 11.538476600744078, "merchant": "Mercadona", "date": "2026-04-21"}, {"name": "Picada de Vacuno", "canonical": "", "amount": 6.272160566706021, "merchant": "Mercadona", "date": "2026-04-12"}, {"name": "Preparado Vacuno Sup", "canonical": "", "amount": 5.49, "merchant": "Carrefour", "date": "2026-04-10"}], "poultry": [{"name": "pechuga 2 und", "canonical": "chicken", "amount": 6.687901207937879, "merchant": "Mercadona", "date": "2026-04-27"}, {"name": "chicken", "canonical": "chicken", "amount": 5.960000000000001, "merchant": "Mercadona", "date": "2026-04-24"}, {"name": "pechuga familiar", "canonical": "chicken", "amount": 6.031476404934404, "merchant": "Mercadona", "date": "2026-04-21"}, {"name": "Pechuga", "canonical": "chicken", "amount": 11.03435655253837, "merchant": "Mercadona", "date": "2026-04-12"}, {"name": "Pavo a Tacos", "canonical": "turkey", "amount": 1.417043683589138, "merchant": "Mercadona", "date": "2026-04-12"}], "non_food": [{"name": "lavavaj. todo en 1", "canonical": "cleaning product", "amount": 7.8505823986195, "merchant": "Mercadona", "date": "2026-04-27"}, {"name": "gel oliva", "canonical": "gel", "amount": 1.6783238691991387, "merchant": "Mercadona", "date": "2026-04-21"}], "dairy": [{"name": "q rallado fundir", "canonical": "cheese", "amount": 2.086863675582399, "merchant": "Mercadona", "date": "2026-04-27"}, {"name": "griego ligero nat", "canonical": "yogurt", "amount": 1.7887402933563419, "merchant": "Mercadona", "date": "2026-04-27"}, {"name": "yoghurt", "canonical": "yogurt", "amount": 4.950000000000001, "merchant": "Mercadona", "date": "2026-04-24"}, {"name": "natural protein", "canonical": "protein", "amount": 2.8000000000000003, "merchant": "Mercadona", "date": "2026-04-24"}, {"name": "milk", "canonical": "milk", "amount": 2.4125905619737615, "merchant": "Mercadona", "date": "2026-04-21"}, {"name": "griego ligero nat", "canonical": "yogurt", "amount": 4.6153906402976315, "merchant": "Mercadona", "date": "2026-04-21"}, {"name": "Leche Fresca Semi", "canonical": "milk", "amount": 2.5, "merchant": "Carrefour", "date": "2026-04-15"}, {"name": "Leche Fresca Entera", "canonical": "", "amount": 2.65, "merchant": "Carrefour", "date": "2026-04-12"}, {"name": "Proteína 0% Natural", "canonical": "", "amount": 1.6261157024793387, "merchant": "Mercadona", "date": "2026-04-12"}, {"name": "Actimel Natural 0%", "canonical": "", "amount": 1.8584179456906729, "merchant": "Mercadona", "date": "2026-04-12"}, {"name": "Leche Fresca CRF 1L", "canonical": "", "amount": 1.15, "merchant": "Carrefour", "date": "2026-04-10"}, {"name": "Queso FRSC. Granulado", "canonical": "", "amount": 2.9330743618201995, "merchant": "Aldi", "date": "2026-04-09"}, {"name": "Actimel 0% Pack", "canonical": "", "amount": 3.3921642619311876, "merchant": "Aldi", "date": "2026-04-09"}], "carbs": [{"name": "tortilla avena 6 un", "canonical": "tortilla", "amount": 1.7887402933563419, "merchant": "Mercadona", "date": "2026-04-27"}, {"name": "tortilla avena", "canonical": "oat tortilla", "amount": 3.881123947523008, "merchant": "Mercadona", "date": "2026-04-21"}, {"name": "chia", "canonical": "chia", "amount": 1.5209810064617193, "merchant": "Mercadona", "date": "2026-04-21"}, {"name": "Tortilla Integral", "canonical": "tortilla", "amount": 1.96, "merchant": "Carrefour", "date": "2026-04-15"}, {"name": "Tortilla Avena", "canonical": "", "amount": 2.090720188902007, "merchant": "Mercadona", "date": "2026-04-12"}, {"name": "Discos de Sem Redondo", "canonical": "", "amount": 2.090720188902007, "merchant": "Mercadona", "date": "2026-04-12"}], "snacks": [{"name": "aperitivos maiz ko", "canonical": "snack", "amount": 0.9, "merchant": "Carrefour", "date": "2026-04-26"}], "fruit": [{"name": "blueberries", "canonical": "fruit", "amount": 2.1500000000000004, "merchant": "Mercadona", "date": "2026-04-24"}, {"name": "mix frutos rojos", "canonical": "mix fruits", "amount": 1.993009594673977, "merchant": "Mercadona", "date": "2026-04-21"}, {"name": "banana", "canonical": "banana", "amount": 1.311190522811827, "merchant": "Mercadona", "date": "2026-04-21"}, {"name": "Banana Granel", "canonical": "", "amount": 0.98, "merchant": "Carrefour", "date": "2026-04-12"}, {"name": "Mix Frutos Rojos", "canonical": "", "amount": 6.272160566706021, "merchant": "Mercadona", "date": "2026-04-12"}, {"name": "Limóncello", "canonical": "", "amount": 2.1487957497048407, "merchant": "Mercadona", "date": "2026-04-12"}, {"name": "Z.Naranja 330ml Ref.", "canonical": "", "amount": 1.777112160566706, "merchant": "Mercadona", "date": "2026-04-12"}, {"name": "Limon", "canonical": "", "amount": 0.44, "merchant": "Carrefour", "date": "2026-04-11"}], "sweets": [{"name": "caramel pudding", "canonical": "caramel pudding", "amount": 1.9000000000000004, "merchant": "Mercadona", "date": "2026-04-24"}, {"name": "gelatina frutos rojo", "canonical": "gelatin", "amount": 2.0979048364989232, "merchant": "Mercadona", "date": "2026-04-21"}, {"name": "miel de flores", "canonical": "honey", "amount": 5.139866849422362, "merchant": "Mercadona", "date": "2026-04-21"}, {"name": "napolitanas chocolate", "canonical": "pastry", "amount": 1.95, "merchant": "Supermercado Dornajo", "date": "2026-04-16"}], "alcohol_at_home": [{"name": "alhambra espec", "canonical": "beer", "amount": 2.8, "merchant": "Supermercado Dornajo", "date": "2026-04-16"}], "other": [{"name": "Ens.IV Estaciones", "canonical": "", "amount": 2.206871310507674, "merchant": "Mercadona", "date": "2026-04-12"}, {"name": "Q Rallado Fundir", "canonical": "", "amount": 2.903778040141676, "merchant": "Mercadona", "date": "2026-04-12"}, {"name": "Higiénico Doble Roll", "canonical": "", "amount": 2.903778040141676, "merchant": "Mercadona", "date": "2026-04-12"}, {"name": "Toallita Bebé Aqua", "canonical": "", "amount": 1.0918205430932701, "merchant": "Mercadona", "date": "2026-04-12"}, {"name": "Griego Ligero Nat", "canonical": "", "amount": 2.6714757969303418, "merchant": "Mercadona", "date": "2026-04-12"}, {"name": "Rollo Hogar Doble", "canonical": "", "amount": 2.6714757969303418, "merchant": "Mercadona", "date": "2026-04-12"}, {"name": "Calabacín Verde", "canonical": "", "amount": 0.7549822904368358, "merchant": "Mercadona", "date": "2026-04-12"}, {"name": "Big Tolipe Dark", "canonical": "", "amount": 1.49, "merchant": "Carrefour", "date": "2026-04-11"}], "eggs": [{"name": "24 Huevos Frescos", "canonical": "", "amount": 6.504462809917355, "merchant": "Mercadona", "date": "2026-04-12"}]}, "labels": {"red_meat": "Red meat", "poultry": "Poultry", "fish": "Fish/seafood", "dairy": "Dairy", "eggs": "Eggs", "vegetables": "Vegetables", "fruit": "Fruit", "carbs": "Carbs/grains", "sweets": "Sweets", "snacks": "Snacks", "sauces": "Sauces/condiments", "alcohol_at_home": "Alcohol", "non_alcohol": "Non-alcoholic drinks", "protein_supplement": "Protein supplements", "non_food": "Non-food", "other": "Other"}, "drinks": {"alcohol": 42.83, "non_alcohol": 139.49999999999997, "untyped": 224.3, "alcohol_items": [{"name": "san miguel yakima valley ipa", "amount": 0.5, "merchant": "Sqrups Granada Ronda", "date": "2026-04-27"}, {"name": "jack daniels & coca cola", "amount": 1.25, "merchant": "Sqrups Granada Ronda", "date": "2026-04-27"}, {"name": "raimat costers del segre vino", "amount": 1.98, "merchant": "Sqrups Granada Ronda", "date": "2026-04-27"}, {"name": "tubo", "amount": 4.0, "merchant": "El Bar De Fede", "date": "2026-04-15"}, {"name": "tinto de verano limon", "amount": 3.5, "merchant": "El Bar De Fede", "date": "2026-04-15"}, {"name": "caña", "amount": 6.4, "merchant": "Oum Kalsum", "date": "2026-04-14"}, {"name": "Dry Martini", "amount": 4.9, "merchant": "Reverso Gastro-Bar", "date": "2026-04-10"}, {"name": "Aperol Spritz", "amount": 4.9, "merchant": "Reverso Gastro-Bar", "date": "2026-04-10"}, {"name": "Caña", "amount": 3.2, "merchant": "Oum Kalsum", "date": "2026-04-04"}, {"name": "Caña", "amount": 3.2, "merchant": "Oum Kalsum", "date": "2026-04-04"}, {"name": "Tinto Verano", "amount": 3.0, "merchant": "Oum Kalsum", "date": "2026-04-04"}, {"name": "Tinto Verano", "amount": 3.0, "merchant": "Oum Kalsum", "date": "2026-04-04"}, {"name": "Tinto Verano", "amount": 3.0, "merchant": "Oum Kalsum", "date": "2026-04-04"}], "non_alcohol_items": [{"name": "actimel", "amount": 2.0, "merchant": "Sqrups Granada Ronda", "date": "2026-04-27"}, {"name": "coup extracto cafe proteinas", "amount": 2.25, "merchant": "Sqrups Granada Ronda", "date": "2026-04-27"}, {"name": "salsa verde", "amount": 0.6, "merchant": "TKO Tacos", "date": "2026-04-16"}, {"name": "coca cola zero", "amount": 2.65, "merchant": "TKO Tacos", "date": "2026-04-16"}, {"name": "taco de arrachera", "amount": 1.95, "merchant": "TKO Tacos", "date": "2026-04-16"}, {"name": "taco de tinga de po", "amount": 2.0, "merchant": "TKO Tacos", "date": "2026-04-16"}, {"name": "taco al pastor", "amount": 2.0, "merchant": "TKO Tacos", "date": "2026-04-16"}, {"name": "nestea", "amount": 3.5, "merchant": "El Bar De Fede", "date": "2026-04-15"}, {"name": "coca cola", "amount": 6.6, "merchant": "Oum Kalsum", "date": "2026-04-14"}, {"name": "nestea", "amount": 6.6, "merchant": "Oum Kalsum", "date": "2026-04-14"}, {"name": "Griego Gyros Pollo", "amount": 12.0, "merchant": "Kebab", "date": "2026-04-11"}, {"name": "Porciones", "amount": 13.5, "merchant": "Pizzeria Garo", "date": "2026-04-08"}, {"name": "Café o Infusión", "amount": 4.8, "merchant": "Cafeteria - Bar - Mundisalado", "date": "2026-04-07"}, {"name": "Delicatesen", "amount": 9.6, "merchant": "Cafeteria - Bar - Mundisalado", "date": "2026-04-07"}, {"name": "Gourmet", "amount": 4.4, "merchant": "Cafeteria - Bar - Mundisalado", "date": "2026-04-07"}, {"name": "Mango Yakult", "amount": 6.4, "merchant": "CoCo Bubble Tea", "date": "2026-04-05"}, {"name": "Leche fresca con Tapioca", "amount": 5.9, "merchant": "CoCo Bubble Tea", "date": "2026-04-05"}, {"name": "Michelada + Importa", "amount": 4.391141942369264, "merchant": "TKO Tacos", "date": "2026-04-05"}, {"name": "XX", "amount": 3.884471718249733, "merchant": "TKO Tacos", "date": "2026-04-05"}, {"name": "Margarita", "amount": 5.629669156883671, "merchant": "TKO Tacos", "date": "2026-04-05"}, {"name": "Margarita de Sabor Maracuyá", "amount": 7.4874599786552825, "merchant": "TKO Tacos", "date": "2026-04-05"}, {"name": "Nombre", "amount": 1.1259338313767342, "merchant": "TKO Tacos", "date": "2026-04-05"}, {"name": "Dos Salsas", "amount": 1.1259338313767342, "merchant": "TKO Tacos", "date": "2026-04-05"}, {"name": "Taco de Lengua", "amount": 6.586712913553894, "merchant": "TKO Tacos", "date": "2026-04-05"}, {"name": "Taco al Pastor", "amount": 5.629669156883671, "merchant": "TKO Tacos", "date": "2026-04-05"}, {"name": "Taco de Cochinita P", "amount": 5.629669156883671, "merchant": "TKO Tacos", "date": "2026-04-05"}, {"name": "Taco de Suadero", "amount": 5.629669156883671, "merchant": "TKO Tacos", "date": "2026-04-05"}, {"name": "Taco de Tinga de Po", "amount": 5.629669156883671, "merchant": "TKO Tacos", "date": "2026-04-05"}]}};
+const ITEMS_INDEX = [{"name": "coca cola zero lata", "canonical": "soft drink", "amount": 0.95, "merchant": "Carrefour", "date": "2026-04-30", "category": "Groceries"}, {"name": "bonito crf granel", "canonical": "fish", "amount": 3.66, "merchant": "Carrefour", "date": "2026-04-30", "category": "Groceries"}, {"name": "tomate cherry", "canonical": "tomato", "amount": 2.0, "merchant": "Carrefour", "date": "2026-04-30", "category": "Groceries"}, {"name": "myprotein impact whey protein", "canonical": "protein", "amount": 27.19, "merchant": "My Protein", "date": "2026-04-30", "category": "Health"}, {"name": "shipping", "canonical": "shipping", "amount": 3.49, "merchant": "My Protein", "date": "2026-04-30", "category": "Health"}, {"name": "Flight Fare", "canonical": "flight", "amount": 202.7, "merchant": "Norwegian", "date": "2026-04-30", "category": "Travel"}, {"name": "Overhead cabin bag", "canonical": "luggage", "amount": 24.0, "merchant": "Norwegian", "date": "2026-04-30", "category": "Travel"}, {"name": "Flight Fare", "canonical": "flight", "amount": 349.1, "merchant": "Norwegian", "date": "2026-04-30", "category": "Travel"}, {"name": "Checked bag", "canonical": "luggage", "amount": 40.0, "merchant": "Norwegian", "date": "2026-04-30", "category": "Travel"}, {"name": "Essential subscription", "canonical": "subscription", "amount": 18.09, "merchant": "TradingView", "date": "2026-04-28", "category": "Business"}, {"name": "actimel", "canonical": "yogurt", "amount": 2.0, "merchant": "Sqrups Granada Ronda", "date": "2026-04-27", "category": "Drinks"}, {"name": "san miguel yakima valley ipa", "canonical": "beer", "amount": 0.5, "merchant": "Sqrups Granada Ronda", "date": "2026-04-27", "category": "Drinks"}, {"name": "coup extracto cafe proteinas", "canonical": "coffee", "amount": 2.25, "merchant": "Sqrups Granada Ronda", "date": "2026-04-27", "category": "Drinks"}, {"name": "jack daniels & coca cola", "canonical": "spirits", "amount": 1.25, "merchant": "Sqrups Granada Ronda", "date": "2026-04-27", "category": "Drinks"}, {"name": "raimat costers del segre vino", "canonical": "wine", "amount": 1.98, "merchant": "Sqrups Granada Ronda", "date": "2026-04-27", "category": "Drinks"}, {"name": "salsa de soja salada", "canonical": "sauce", "amount": 1.1924935289042278, "merchant": "Mercadona", "date": "2026-04-27", "category": "Groceries"}, {"name": "ens.IV estaciones", "canonical": "salad", "amount": 0.8446829163071614, "merchant": "Mercadona", "date": "2026-04-27", "category": "Groceries"}, {"name": "ternera extrajera", "canonical": "beef", "amount": 8.3772670405522, "merchant": "Mercadona", "date": "2026-04-27", "category": "Groceries"}, {"name": "burger m' vacun 1000g", "canonical": "burger", "amount": 10.732441760138052, "merchant": "Mercadona", "date": "2026-04-27", "category": "Groceries"}, {"name": "pechuga 2 und", "canonical": "chicken", "amount": 6.687901207937879, "merchant": "Mercadona", "date": "2026-04-27", "category": "Groceries"}, {"name": "lavavaj. todo en 1", "canonical": "cleaning product", "amount": 7.8505823986195, "merchant": "Mercadona", "date": "2026-04-27", "category": "Groceries"}, {"name": "q rallado fundir", "canonical": "cheese", "amount": 2.086863675582399, "merchant": "Mercadona", "date": "2026-04-27", "category": "Groceries"}, {"name": "griego ligero nat", "canonical": "yogurt", "amount": 1.7887402933563419, "merchant": "Mercadona", "date": "2026-04-27", "category": "Groceries"}, {"name": "champión blan", "canonical": "mushroom", "amount": 2.186238136324418, "merchant": "Mercadona", "date": "2026-04-27", "category": "Groceries"}, {"name": "tortilla avena 6 un", "canonical": "tortilla", "amount": 1.7887402933563419, "merchant": "Mercadona", "date": "2026-04-27", "category": "Groceries"}, {"name": "patata", "canonical": "potato", "amount": 2.5340487489214842, "merchant": "Mercadona", "date": "2026-04-27", "category": "Groceries"}, {"name": "cola carrefour 33cl", "canonical": "soda", "amount": 0.38, "merchant": "Carrefour", "date": "2026-04-26", "category": "Groceries"}, {"name": "aperitivos maiz ko", "canonical": "snack", "amount": 0.9, "merchant": "Carrefour", "date": "2026-04-26", "category": "Groceries"}, {"name": "salsa lea & perrin", "canonical": "sauce", "amount": 3.79, "merchant": "Carrefour", "date": "2026-04-26", "category": "Groceries"}, {"name": "boniato crf granel", "canonical": "vegetable", "amount": 3.26, "merchant": "Carrefour", "date": "2026-04-26", "category": "Groceries"}, {"name": "one-time credit purchase", "canonical": "service", "amount": 24.2, "merchant": "Anthropic", "date": "2026-04-24", "category": "Business"}, {"name": "blueberries", "canonical": "fruit", "amount": 2.1500000000000004, "merchant": "Mercadona", "date": "2026-04-24", "category": "Groceries"}, {"name": "chicken", "canonical": "chicken", "amount": 5.960000000000001, "merchant": "Mercadona", "date": "2026-04-24", "category": "Groceries"}, {"name": "yoghurt", "canonical": "yogurt", "amount": 4.950000000000001, "merchant": "Mercadona", "date": "2026-04-24", "category": "Groceries"}, {"name": "caramel pudding", "canonical": "caramel pudding", "amount": 1.9000000000000004, "merchant": "Mercadona", "date": "2026-04-24", "category": "Groceries"}, {"name": "natural protein", "canonical": "protein", "amount": 2.8000000000000003, "merchant": "Mercadona", "date": "2026-04-24", "category": "Groceries"}, {"name": "Starter plan", "canonical": "subscription", "amount": 35.09, "merchant": "Apify Technologies", "date": "2026-04-24", "category": "Business"}, {"name": "utensils", "canonical": "kitchen utensils", "amount": 6.0, "merchant": "Pepco", "date": "2026-04-22", "category": "Shopping"}, {"name": "bag", "canonical": "bag", "amount": 0.4, "merchant": "Pepco", "date": "2026-04-22", "category": "Shopping"}, {"name": "plastic table", "canonical": "plastic table", "amount": 0.8, "merchant": "Pepco", "date": "2026-04-22", "category": "Shopping"}, {"name": "hangers", "canonical": "hangers", "amount": 2.6, "merchant": "Pepco", "date": "2026-04-22", "category": "Shopping"}, {"name": "pot", "canonical": "pot", "amount": 1.3, "merchant": "Pepco", "date": "2026-04-22", "category": "Shopping"}, {"name": "bowl", "canonical": "bowl", "amount": 2.3, "merchant": "Pepco", "date": "2026-04-22", "category": "Shopping"}, {"name": "milk", "canonical": "milk", "amount": 2.4125905619737615, "merchant": "Mercadona", "date": "2026-04-21", "category": "Groceries"}, {"name": "burger", "canonical": "burger", "amount": 11.538476600744078, "merchant": "Mercadona", "date": "2026-04-21", "category": "Groceries"}, {"name": "pechuga familiar", "canonical": "chicken", "amount": 6.031476404934404, "merchant": "Mercadona", "date": "2026-04-21", "category": "Groceries"}, {"name": "mix frutos rojos", "canonical": "mix fruits", "amount": 1.993009594673977, "merchant": "Mercadona", "date": "2026-04-21", "category": "Groceries"}, {"name": "pepino holandes", "canonical": "cucumber", "amount": 1.1433581358919132, "merchant": "Mercadona", "date": "2026-04-21", "category": "Groceries"}, {"name": "tortilla avena", "canonical": "oat tortilla", "amount": 3.881123947523008, "merchant": "Mercadona", "date": "2026-04-21", "category": "Groceries"}, {"name": "ajo seco", "canonical": "garlic", "amount": 1.940561973761504, "merchant": "Mercadona", "date": "2026-04-21", "category": "Groceries"}, {"name": "cebolla tubo", "canonical": "onion", "amount": 2.517485803798708, "merchant": "Mercadona", "date": "2026-04-21", "category": "Groceries"}, {"name": "chia", "canonical": "chia", "amount": 1.5209810064617193, "merchant": "Mercadona", "date": "2026-04-21", "category": "Groceries"}, {"name": "gel oliva", "canonical": "gel", "amount": 1.6783238691991387, "merchant": "Mercadona", "date": "2026-04-21", "category": "Groceries"}, {"name": "gelatina frutos rojo", "canonical": "gelatin", "amount": 2.0979048364989232, "merchant": "Mercadona", "date": "2026-04-21", "category": "Groceries"}, {"name": "griego ligero nat", "canonical": "yogurt", "amount": 4.6153906402976315, "merchant": "Mercadona", "date": "2026-04-21", "category": "Groceries"}, {"name": "pimenton picante", "canonical": "spices", "amount": 1.4160857646367733, "merchant": "Mercadona", "date": "2026-04-21", "category": "Groceries"}, {"name": "miel de flores", "canonical": "honey", "amount": 5.139866849422362, "merchant": "Mercadona", "date": "2026-04-21", "category": "Groceries"}, {"name": "banana", "canonical": "banana", "amount": 1.311190522811827, "merchant": "Mercadona", "date": "2026-04-21", "category": "Groceries"}, {"name": "batata granel", "canonical": "sweet potato", "amount": 4.332173487370277, "merchant": "Mercadona", "date": "2026-04-21", "category": "Groceries"}, {"name": "sunglasses", "canonical": "sunglasses", "amount": 2.99, "merchant": "ZEEMAN Textielsupers SLU", "date": "2026-04-18", "category": "Household"}, {"name": "toothpaste", "canonical": "toothpaste", "amount": 1.79, "merchant": "ZEEMAN Textielsupers SLU", "date": "2026-04-18", "category": "Household"}, {"name": "hair accessories", "canonical": "hair accessories", "amount": 0.99, "merchant": "ZEEMAN Textielsupers SLU", "date": "2026-04-18", "category": "Household"}, {"name": "panties", "canonical": "panties", "amount": 0.99, "merchant": "ZEEMAN Textielsupers SLU", "date": "2026-04-18", "category": "Household"}, {"name": "organizer", "canonical": "organizer", "amount": 2.99, "merchant": "ZEEMAN Textielsupers SLU", "date": "2026-04-18", "category": "Household"}, {"name": "umbrella", "canonical": "umbrella", "amount": 4.49, "merchant": "ZEEMAN Textielsupers SLU", "date": "2026-04-18", "category": "Household"}, {"name": "AUGMENTINE 875 MG", "canonical": "medication", "amount": 14.3, "merchant": "Farmacia", "date": "2026-04-17", "category": "Health"}, {"name": "ENANTIVM 25 MG 20", "canonical": "medication", "amount": 4.0, "merchant": "Farmacia", "date": "2026-04-17", "category": "Health"}, {"name": "Max plan", "canonical": "subscription", "amount": 90.0, "merchant": "Anthropic", "date": "2026-04-17", "category": "Business"}, {"name": "Growth Plan", "canonical": "subscription", "amount": 39.0, "merchant": "Instantly", "date": "2026-04-17", "category": "Business"}, {"name": "salsa verde", "canonical": "sauce", "amount": 0.6, "merchant": "TKO Tacos", "date": "2026-04-16", "category": "Eating Out"}, {"name": "coca cola zero", "canonical": "soda", "amount": 2.65, "merchant": "TKO Tacos", "date": "2026-04-16", "category": "Eating Out"}, {"name": "taco de arrachera", "canonical": "taco", "amount": 1.95, "merchant": "TKO Tacos", "date": "2026-04-16", "category": "Eating Out"}, {"name": "taco de tinga de po", "canonical": "taco", "amount": 2.0, "merchant": "TKO Tacos", "date": "2026-04-16", "category": "Eating Out"}, {"name": "taco al pastor", "canonical": "taco", "amount": 2.0, "merchant": "TKO Tacos", "date": "2026-04-16", "category": "Eating Out"}, {"name": "napolitanas chocolate", "canonical": "pastry", "amount": 1.95, "merchant": "Supermercado Dornajo", "date": "2026-04-16", "category": "Groceries"}, {"name": "alhambra espec", "canonical": "beer", "amount": 2.8, "merchant": "Supermercado Dornajo", "date": "2026-04-16", "category": "Groceries"}, {"name": "tubo", "canonical": "beer", "amount": 4.0, "merchant": "El Bar De Fede", "date": "2026-04-15", "category": "Drinks"}, {"name": "tinto de verano limon", "canonical": "wine", "amount": 3.5, "merchant": "El Bar De Fede", "date": "2026-04-15", "category": "Drinks"}, {"name": "nestea", "canonical": "tea", "amount": 3.5, "merchant": "El Bar De Fede", "date": "2026-04-15", "category": "Drinks"}, {"name": "camisa", "canonical": "shirt", "amount": 39.95, "merchant": "Zara", "date": "2026-04-15", "category": "Shopping"}, {"name": "Tortilla Integral", "canonical": "tortilla", "amount": 1.96, "merchant": "Carrefour", "date": "2026-04-15", "category": "Groceries"}, {"name": "Leche Fresca Semi", "canonical": "milk", "amount": 2.5, "merchant": "Carrefour", "date": "2026-04-15", "category": "Groceries"}, {"name": "coca cola", "canonical": "soft drink", "amount": 6.6, "merchant": "Oum Kalsum", "date": "2026-04-14", "category": "Drinks"}, {"name": "nestea", "canonical": "soft drink", "amount": 6.6, "merchant": "Oum Kalsum", "date": "2026-04-14", "category": "Drinks"}, {"name": "caña", "canonical": "beer", "amount": 6.4, "merchant": "Oum Kalsum", "date": "2026-04-14", "category": "Drinks"}, {"name": "Salsa Brava Orlan", "canonical": "sauce", "amount": 1.53, "merchant": "Coviran", "date": "2026-04-14", "category": "Groceries"}, {"name": "Percha Con Pinza", "canonical": "", "amount": 5.85, "merchant": "Bazar Alarcon", "date": "2026-04-12", "category": "Household"}, {"name": "Fiambrea", "canonical": "", "amount": 3.5, "merchant": "Bazar Alarcon", "date": "2026-04-12", "category": "Household"}, {"name": "Cola Carrefour 2L", "canonical": "", "amount": 0.91, "merchant": "Carrefour", "date": "2026-04-12", "category": "Groceries"}, {"name": "Leche Fresca Entera", "canonical": "", "amount": 2.65, "merchant": "Carrefour", "date": "2026-04-12", "category": "Groceries"}, {"name": "Banana Granel", "canonical": "", "amount": 0.98, "merchant": "Carrefour", "date": "2026-04-12", "category": "Groceries"}, {"name": "Pimiento Tricolor", "canonical": "", "amount": 2.35, "merchant": "Carrefour", "date": "2026-04-12", "category": "Groceries"}, {"name": "Family 2 Abril 2026", "canonical": "", "amount": 88.0, "merchant": "Ealt Alsina Granada", "date": "2026-04-12", "category": "Health"}, {"name": "Recargo Recibo", "canonical": "", "amount": 3.0, "merchant": "Ealt Alsina Granada", "date": "2026-04-12", "category": "Health"}, {"name": "Pechuga", "canonical": "chicken", "amount": 11.03435655253837, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Mix Frutos Rojos", "canonical": "", "amount": 6.272160566706021, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Picada de Vacuno", "canonical": "", "amount": 6.272160566706021, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Tortilla Avena", "canonical": "", "amount": 2.090720188902007, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Discos de Sem Redondo", "canonical": "", "amount": 2.090720188902007, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Limóncello", "canonical": "", "amount": 2.1487957497048407, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Proteína 0% Natural", "canonical": "", "amount": 1.6261157024793387, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Ens.IV Estaciones", "canonical": "", "amount": 2.206871310507674, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Filete de Trucha", "canonical": "fish", "amount": 4.8783471074380165, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Atún Claro Natural", "canonical": "", "amount": 3.7168358913813457, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Z.Naranja 330ml Ref.", "canonical": "", "amount": 1.777112160566706, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Proteína Arándanos", "canonical": "", "amount": 2.6134002361275086, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Aceite Virgen Extra", "canonical": "", "amount": 8.10734828807556, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Filete Salmón", "canonical": "fish", "amount": 8.31642030696576, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Q Rallado Fundir", "canonical": "", "amount": 2.903778040141676, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "24 Huevos Frescos", "canonical": "", "amount": 6.504462809917355, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Salsa de Soja Salada", "canonical": "", "amount": 1.9745690672963399, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Ketchup Zero", "canonical": "", "amount": 2.6714757969303418, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Higiénico Doble Roll", "canonical": "", "amount": 2.903778040141676, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Toallita Bebé Aqua", "canonical": "", "amount": 1.0918205430932701, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Cebolla", "canonical": "", "amount": 4.8551168831168825, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Actimel Natural 0%", "canonical": "", "amount": 1.8584179456906729, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Pavo a Tacos", "canonical": "turkey", "amount": 1.417043683589138, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Pepino Holandés", "canonical": "", "amount": 1.417043683589138, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Griego Ligero Nat", "canonical": "", "amount": 2.6714757969303418, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Rollo Hogar Doble", "canonical": "", "amount": 2.6714757969303418, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Patata", "canonical": "", "amount": 1.5331948051948052, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Calabacín Verde", "canonical": "", "amount": 0.7549822904368358, "merchant": "Mercadona", "date": "2026-04-12", "category": "Groceries"}, {"name": "Griego Gyros Pollo", "canonical": "", "amount": 12.0, "merchant": "Kebab", "date": "2026-04-11", "category": "Eating Out"}, {"name": "Cola Carrefour 2L", "canonical": "", "amount": 0.91, "merchant": "Carrefour", "date": "2026-04-11", "category": "Groceries"}, {"name": "Limon", "canonical": "", "amount": 0.44, "merchant": "Carrefour", "date": "2026-04-11", "category": "Groceries"}, {"name": "Tomate Cherry", "canonical": "", "amount": 1.0, "merchant": "Carrefour", "date": "2026-04-11", "category": "Groceries"}, {"name": "Big Tolipe Dark", "canonical": "", "amount": 1.49, "merchant": "Carrefour", "date": "2026-04-11", "category": "Groceries"}, {"name": "Dry Martini", "canonical": "", "amount": 4.9, "merchant": "Reverso Gastro-Bar", "date": "2026-04-10", "category": "Drinks"}, {"name": "Aperol Spritz", "canonical": "", "amount": 4.9, "merchant": "Reverso Gastro-Bar", "date": "2026-04-10", "category": "Drinks"}, {"name": "Leche Fresca CRF 1L", "canonical": "", "amount": 1.15, "merchant": "Carrefour", "date": "2026-04-10", "category": "Groceries"}, {"name": "Aguacate Bandeja", "canonical": "", "amount": 3.71, "merchant": "Carrefour", "date": "2026-04-10", "category": "Groceries"}, {"name": "Bonito CRF Granel", "canonical": "", "amount": 6.78, "merchant": "Carrefour", "date": "2026-04-10", "category": "Groceries"}, {"name": "Tomate Cherry", "canonical": "", "amount": 1.0, "merchant": "Carrefour", "date": "2026-04-10", "category": "Groceries"}, {"name": "Preparado Vacuno Sup", "canonical": "", "amount": 5.49, "merchant": "Carrefour", "date": "2026-04-10", "category": "Groceries"}, {"name": "Queso FRSC. Granulado", "canonical": "", "amount": 2.9330743618201995, "merchant": "Aldi", "date": "2026-04-09", "category": "Groceries"}, {"name": "Actimel 0% Pack", "canonical": "", "amount": 3.3921642619311876, "merchant": "Aldi", "date": "2026-04-09", "category": "Groceries"}, {"name": "Atún Claro Natural", "canonical": "", "amount": 5.164761376248612, "merchant": "Aldi", "date": "2026-04-09", "category": "Groceries"}, {"name": "Porciones", "canonical": "", "amount": 13.5, "merchant": "Pizzeria Garo", "date": "2026-04-08", "category": "Eating Out"}, {"name": "Café o Infusión", "canonical": "", "amount": 4.8, "merchant": "Cafeteria - Bar - Mundisalado", "date": "2026-04-07", "category": "Eating Out"}, {"name": "Delicatesen", "canonical": "", "amount": 9.6, "merchant": "Cafeteria - Bar - Mundisalado", "date": "2026-04-07", "category": "Eating Out"}, {"name": "Gourmet", "canonical": "", "amount": 4.4, "merchant": "Cafeteria - Bar - Mundisalado", "date": "2026-04-07", "category": "Eating Out"}, {"name": "Bolsa Mediana", "canonical": "", "amount": 8.25, "merchant": "Mosaico T.T", "date": "2026-04-06", "category": "Shopping"}, {"name": "Mango Yakult", "canonical": "", "amount": 6.4, "merchant": "CoCo Bubble Tea", "date": "2026-04-05", "category": "Eating Out"}, {"name": "Leche fresca con Tapioca", "canonical": "", "amount": 5.9, "merchant": "CoCo Bubble Tea", "date": "2026-04-05", "category": "Eating Out"}, {"name": "Michelada + Importa", "canonical": "", "amount": 4.391141942369264, "merchant": "TKO Tacos", "date": "2026-04-05", "category": "Eating Out"}, {"name": "XX", "canonical": "", "amount": 3.884471718249733, "merchant": "TKO Tacos", "date": "2026-04-05", "category": "Eating Out"}, {"name": "Margarita", "canonical": "", "amount": 5.629669156883671, "merchant": "TKO Tacos", "date": "2026-04-05", "category": "Eating Out"}, {"name": "Margarita de Sabor Maracuyá", "canonical": "", "amount": 7.4874599786552825, "merchant": "TKO Tacos", "date": "2026-04-05", "category": "Eating Out"}, {"name": "Nombre", "canonical": "", "amount": 1.1259338313767342, "merchant": "TKO Tacos", "date": "2026-04-05", "category": "Eating Out"}, {"name": "Dos Salsas", "canonical": "", "amount": 1.1259338313767342, "merchant": "TKO Tacos", "date": "2026-04-05", "category": "Eating Out"}, {"name": "Taco de Lengua", "canonical": "", "amount": 6.586712913553894, "merchant": "TKO Tacos", "date": "2026-04-05", "category": "Eating Out"}, {"name": "Taco al Pastor", "canonical": "", "amount": 5.629669156883671, "merchant": "TKO Tacos", "date": "2026-04-05", "category": "Eating Out"}, {"name": "Taco de Cochinita P", "canonical": "", "amount": 5.629669156883671, "merchant": "TKO Tacos", "date": "2026-04-05", "category": "Eating Out"}, {"name": "Taco de Suadero", "canonical": "", "amount": 5.629669156883671, "merchant": "TKO Tacos", "date": "2026-04-05", "category": "Eating Out"}, {"name": "Taco de Tinga de Po", "canonical": "", "amount": 5.629669156883671, "merchant": "TKO Tacos", "date": "2026-04-05", "category": "Eating Out"}, {"name": "Caña", "canonical": "", "amount": 3.2, "merchant": "Oum Kalsum", "date": "2026-04-04", "category": "Drinks"}, {"name": "Caña", "canonical": "", "amount": 3.2, "merchant": "Oum Kalsum", "date": "2026-04-04", "category": "Drinks"}, {"name": "Tinto Verano", "canonical": "", "amount": 3.0, "merchant": "Oum Kalsum", "date": "2026-04-04", "category": "Drinks"}, {"name": "Tinto Verano", "canonical": "", "amount": 3.0, "merchant": "Oum Kalsum", "date": "2026-04-04", "category": "Drinks"}, {"name": "Tinto Verano", "canonical": "", "amount": 3.0, "merchant": "Oum Kalsum", "date": "2026-04-04", "category": "Drinks"}];
+const PALETTE = ["#f97316", "#60a5fa", "#4ade80", "#c084fc", "#fbbf24",
+                 "#22d3ee", "#f472b6", "#a3e635", "#fb7185", "#94a3b8",
+                 "#818cf8", "#34d399"];
+
+let state = {
+  tab: "everything",
+  sortKey: "date",
+  sortDir: "desc",
+};
+
+const fmt = n => "€" + (n || 0).toLocaleString("en-GB", {minimumFractionDigits:2, maximumFractionDigits:2});
+const fmtRound = n => "€" + Math.round(n || 0).toLocaleString("en-GB");
+const escapeHtml = s => String(s == null ? "" : s)
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+const escapeAttr = s => escapeHtml(s);
+
+function deriveCategory(e) {
+  if (e.is_business) return "Business";
+  return e.category || "Other";
+}
+
+function displayMerchant(e) {
+  if ((e.merchant || "").toLowerCase().includes("ealt alsina")) {
+    return "Gym (Ealt Alsina Granada)";
+  }
+  return e.merchant || "";
+}
+
+function isQuarterlySanitas(e) {
+  return (e.merchant || "").toLowerCase().includes("sanitas") && e.total >= 100;
+}
+
+function applyTabFilter(rows, tab) {
+  return rows.filter(e => {
+    if (tab === "everything") return true;
+    if (tab === "business") return !!e.is_business;
+    if (tab === "daily") {
+      if (e.is_business) return false;
+      if ((e.category || "") === "Travel") return false;
+      if (isQuarterlySanitas(e)) return false;
+      return true;
+    }
+  });
+}
+
+// ---------- Popup builders for filterable views ----------
+
+function txListHtml(rows) {
+  return rows.slice().sort((a,b) => b.date.localeCompare(a.date)).map(e => {
+    const note = e.note ? ` <span class="muted">(${escapeHtml(e.note)})</span>` : "";
+    let itemHtml = "";
+    if (e.items && e.items.length > 0) {
+      itemHtml = `<div class="tx-items">${e.items.map(it => `
+        <div class="tx-item">
+          <div class="tx-item-name">${escapeHtml(it.name || "")}</div>
+          <div class="tx-item-amt num">${fmt(it.amount || 0)}</div>
+        </div>`).join("")}</div>`;
+    }
+    return `<div class="tx-row">
+      <div class="tx-row-head">
+        <div class="tx-row-left">
+          <div><strong>${escapeHtml(displayMerchant(e))}</strong>${note}</div>
+          <div class="muted tx-row-sub">${e.date.slice(0,10)} · ${escapeHtml(deriveCategory(e))} · ${escapeHtml(e.card || "")}</div>
+        </div>
+        <div class="tx-row-amt num"><strong>${fmt(e.total)}</strong></div>
+      </div>
+      ${itemHtml}
+    </div>`;
+  }).join("");
+}
+
+function showDayDetails(day) {
+  const tabRows = applyTabFilter(DATA.expenses, state.tab);
+  const matches = tabRows.filter(e => parseInt(e.date.slice(8,10), 10) === day);
+  if (matches.length === 0) return;
+  const total = matches.reduce((s,e) => s + e.total, 0);
+  const dt = new Date(DATA.year, DATA.month - 1, day);
+  const wd = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][dt.getDay()];
+  const stats = `
+    <div class="modal-stat"><div class="v">${fmt(total)}</div><div class="l">Total spent</div></div>
+    <div class="modal-stat"><div class="v">${matches.length}</div><div class="l">Transactions</div></div>
+    <div class="modal-stat"><div class="v">${fmt(total/matches.length)}</div><div class="l">Avg / txn</div></div>
+  `;
+  openModal({
+    title: `${wd}, ${DATA.month_name} ${day}`,
+    sub: "All transactions on this day",
+    statsHtml: stats,
+    bodyHtml: txListHtml(matches),
+  });
+}
+
+function showCategoryDetails(cat) {
+  const tabRows = applyTabFilter(DATA.expenses, state.tab);
+  const matches = tabRows.filter(e => deriveCategory(e) === cat);
+  if (matches.length === 0) return;
+  const total = matches.reduce((s,e) => s + e.total, 0);
+  const stats = `
+    <div class="modal-stat"><div class="v">${fmt(total)}</div><div class="l">${escapeHtml(cat)}</div></div>
+    <div class="modal-stat"><div class="v">${matches.length}</div><div class="l">Transactions</div></div>
+    <div class="modal-stat"><div class="v">${fmt(total/matches.length)}</div><div class="l">Avg / txn</div></div>
+  `;
+  openModal({
+    title: cat,
+    sub: "All transactions in this category",
+    statsHtml: stats,
+    bodyHtml: txListHtml(matches),
+  });
+}
+
+function showCardDetails(card) {
+  const tabRows = applyTabFilter(DATA.expenses, state.tab);
+  const matches = tabRows.filter(e => (e.card || "Unknown") === card);
+  if (matches.length === 0) return;
+  const total = matches.reduce((s,e) => s + e.total, 0);
+  // by-category breakdown
+  const byCat = {};
+  matches.forEach(e => {
+    const c = deriveCategory(e);
+    byCat[c] = (byCat[c] || 0) + e.total;
+  });
+  const sortedCats = Object.entries(byCat).sort((a,b) => b[1] - a[1]);
+  const stats = `
+    <div class="modal-stat"><div class="v">${fmt(total)}</div><div class="l">${escapeHtml(card)}</div></div>
+    <div class="modal-stat"><div class="v">${matches.length}</div><div class="l">Transactions</div></div>
+    <div class="modal-stat"><div class="v">${sortedCats.length}</div><div class="l">Categories</div></div>
+  `;
+  const catSummary = `<div style="padding:0 0 12px; border-bottom:1px solid var(--border); margin-bottom:12px;">
+    <div class="muted" style="margin-bottom:6px;">By category:</div>
+    ${sortedCats.map(([c,v]) => `
+      <div style="display:flex; justify-content:space-between; padding:3px 0; font-size:13px;">
+        <span>${escapeHtml(c)}</span><span class="num">${fmt(v)}</span>
+      </div>`).join("")}
+  </div>`;
+  openModal({
+    title: card,
+    sub: "Card detail",
+    statsHtml: stats,
+    bodyHtml: catSummary + txListHtml(matches),
+  });
+}
+
+// ---------- Item search modal ----------
+
+function openItemSearch() {
+  const body = `
+    <input id="itemSearchInput" class="search" style="width:100%; margin-bottom:12px;"
+           placeholder="Type to search… e.g. coca cola, blueberries, cerveza, pollo">
+    <div id="itemSearchResults" class="muted" style="text-align:center; padding:24px;">
+      Start typing to search across all line items in this month.
+    </div>
+  `;
+  openModal({
+    title: "Search items",
+    sub: `${ITEMS_INDEX.length} line items across all itemised receipts this month`,
+    statsHtml: "",
+    bodyHtml: body,
+  });
+  const input = document.getElementById("itemSearchInput");
+  input.focus();
+  input.addEventListener("input", () => renderItemSearchResults(input.value));
+}
+
+function renderItemSearchResults(query) {
+  const wrap = document.getElementById("itemSearchResults");
+  const q = query.trim().toLowerCase();
+  if (q.length < 2) {
+    wrap.style.textAlign = "center";
+    wrap.style.padding = "24px";
+    wrap.innerHTML = `<span class="muted">Type at least 2 characters to search.</span>`;
+    return;
+  }
+
+  // Search 1: line items
+  const itemMatches = ITEMS_INDEX.filter(it =>
+    it.name.toLowerCase().includes(q) || it.canonical.toLowerCase().includes(q)
+  );
+
+  // Search 2: receipts by merchant / note / category
+  const receiptMatches = DATA.expenses.filter(e => {
+    const m = (e.merchant || "").toLowerCase();
+    const n = (e.note || "").toLowerCase();
+    const c = (e.category || "").toLowerCase();
+    return m.includes(q) || n.includes(q) || c.includes(q);
+  });
+
+  if (itemMatches.length === 0 && receiptMatches.length === 0) {
+    wrap.innerHTML = `<span class="muted">No matches.</span>`;
+    wrap.style.textAlign = "center";
+    wrap.style.padding = "24px";
+    return;
+  }
+
+  wrap.style.textAlign = "left";
+  wrap.style.padding = "0";
+
+  let html = "";
+
+  // Receipt-level matches first (more useful when item-level has nothing)
+  if (receiptMatches.length > 0) {
+    const total = receiptMatches.reduce((s,e) => s + e.total, 0);
+    // Group by merchant
+    const byMerch = {};
+    receiptMatches.forEach(e => {
+      const m = displayMerchant(e);
+      if (!byMerch[m]) byMerch[m] = {total: 0, count: 0, cat: deriveCategory(e), occurrences: []};
+      byMerch[m].total += e.total;
+      byMerch[m].count++;
+      byMerch[m].occurrences.push(e);
+    });
+    const sortedMerch = Object.entries(byMerch).sort((a,b) => b[1].total - a[1].total);
+
+    html += `
+      <div style="padding:8px 0 8px; color:var(--text); font-size:13px;">
+        <strong>${fmt(total)}</strong> across <strong>${receiptMatches.length}</strong> receipts (whole-receipt match)
+      </div>
+      ${sortedMerch.map(([m,v]) => `
+        <div class="tx-row">
+          <div class="tx-row-head">
+            <div class="tx-row-left">
+              <div><strong>${escapeHtml(m)}</strong></div>
+              <div class="muted tx-row-sub">
+                ${escapeHtml(v.cat)} · ${v.occurrences.slice(0,3).map(o => o.date.slice(0,10)).join(", ")}${v.occurrences.length > 3 ? ` · +${v.occurrences.length-3}` : ""}
+              </div>
+            </div>
+            <div class="tx-row-amt num">
+              <strong>${fmt(v.total)}</strong>
+              <div class="muted" style="font-size:11px; text-align:right; font-weight:normal;">${v.count} ${v.count === 1 ? "visit" : "visits"}</div>
+            </div>
+          </div>
+        </div>
+      `).join("")}
+    `;
+  }
+
+  // Line-item matches
+  if (itemMatches.length > 0) {
+    const grandTotal = itemMatches.reduce((s,m) => s + m.amount, 0);
+    const agg = {};
+    itemMatches.forEach(it => {
+      const key = it.name.toLowerCase().trim();
+      if (!agg[key]) agg[key] = {display: it.name, total: 0, count: 0, occurrences: []};
+      agg[key].total += it.amount;
+      agg[key].count++;
+      agg[key].occurrences.push(it);
+    });
+    const sorted = Object.values(agg).sort((a,b) => b.total - a.total);
+
+    html += `
+      <div style="padding:18px 0 8px; color:var(--text); font-size:13px;">
+        <strong>${fmt(grandTotal)}</strong> across <strong>${itemMatches.length}</strong> line items in <strong>${sorted.length}</strong> unique products
+      </div>
+      ${sorted.map(g => `
+        <div class="tx-row">
+          <div class="tx-row-head">
+            <div class="tx-row-left">
+              <div><strong>${escapeHtml(g.display)}</strong></div>
+              <div class="muted tx-row-sub">
+                ${g.occurrences.map(o => `${escapeHtml(o.merchant)} ${o.date}`).slice(0, 3).join(" · ")}${g.occurrences.length > 3 ? ` · +${g.occurrences.length-3}` : ""}
+              </div>
+            </div>
+            <div class="tx-row-amt num">
+              <strong>${fmt(g.total)}</strong>
+              <div class="muted" style="font-size:11px; text-align:right; font-weight:normal;">${g.count}×</div>
+            </div>
+          </div>
+        </div>
+      `).join("")}
+    `;
+  }
+
+  wrap.innerHTML = html;
+}
+
+function groupBy(arr, keyFn, valFn) {
+  const m = {};
+  arr.forEach(x => {
+    const k = keyFn(x);
+    m[k] = (m[k] || 0) + valFn(x);
+  });
+  return m;
+}
+
+// ---------- Modal ----------
+
+function openModal({title, sub, statsHtml, bodyHtml}) {
+  document.getElementById("modalTitle").textContent = title;
+  document.getElementById("modalSub").textContent = sub || "";
+  document.getElementById("modalStats").innerHTML = statsHtml || "";
+  document.getElementById("modalBody").innerHTML = bodyHtml;
+  document.getElementById("modal").classList.add("open");
+}
+function closeModal() {
+  document.getElementById("modal").classList.remove("open");
+}
+window.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+
+// Drill into a merchant: show all visits + their line items.
+function showMerchant(merchantDisplayName) {
+  const tabRows = applyTabFilter(DATA.expenses, state.tab);
+  const matches = tabRows.filter(e => displayMerchant(e) === merchantDisplayName);
+  const total = matches.reduce((s,e) => s + e.total, 0);
+  const visits = matches.length;
+  const cats = [...new Set(matches.map(deriveCategory))].join(", ");
+
+  const stats = `
+    <div class="modal-stat"><div class="v">${fmt(total)}</div><div class="l">Total spent</div></div>
+    <div class="modal-stat"><div class="v">${visits}</div><div class="l">Visits</div></div>
+    <div class="modal-stat"><div class="v">${fmt(total/visits)}</div><div class="l">Avg / visit</div></div>
+  `;
+
+  const visitRows = matches.slice().sort((a,b) => b.date.localeCompare(a.date)).map(e => {
+    const note = e.note ? ` <span class="muted">(${e.note})</span>` : "";
+    let itemHtml = "";
+    if (e.items && e.items.length > 0) {
+      itemHtml = `<table style="margin-top:8px; font-size:12px;">
+        ${e.items.map(it => `<tr>
+          <td style="padding:4px 8px; color:var(--text-2);">${it.name || ""}</td>
+          <td class="right num" style="padding:4px 8px;">${fmt(it.amount || 0)}</td>
+        </tr>`).join("")}
+      </table>`;
+    }
+    return `<div style="padding:12px 0; border-bottom:1px solid var(--border);">
+      <div style="display:flex; justify-content:space-between; align-items:baseline;">
+        <div><strong>${e.date.slice(0,10)}</strong>${note} <span class="muted">· ${deriveCategory(e)}</span></div>
+        <div class="num"><strong>${fmt(e.total)}</strong></div>
+      </div>
+      ${itemHtml}
+    </div>`;
+  }).join("");
+
+  openModal({
+    title: merchantDisplayName,
+    sub: cats,
+    statsHtml: stats,
+    bodyHtml: visitRows,
+  });
+}
+
+// Drill into a food group: show specific items from groceries.
+function showFoodGroup(group) {
+  const items = (FOOD.items_by_group[group] || []).slice().sort((a,b) => b.amount - a.amount);
+  const total = items.reduce((s,i) => s + i.amount, 0);
+  const label = FOOD.labels[group] || group;
+
+  // Collapse identical-name items
+  const collapsed = {};
+  items.forEach(it => {
+    const key = (it.canonical || it.name).toLowerCase();
+    if (!collapsed[key]) collapsed[key] = {display: it.canonical || it.name, count: 0, total: 0, occurrences: []};
+    collapsed[key].count++;
+    collapsed[key].total += it.amount;
+    collapsed[key].occurrences.push(it);
+  });
+  const sortedItems = Object.values(collapsed).sort((a,b) => b.total - a.total);
+
+  const stats = `
+    <div class="modal-stat"><div class="v">${fmt(total)}</div><div class="l">${label}</div></div>
+    <div class="modal-stat"><div class="v">${items.length}</div><div class="l">Line items</div></div>
+    <div class="modal-stat"><div class="v">${sortedItems.length}</div><div class="l">Unique</div></div>
+  `;
+
+  const body = `
+    <table>
+      <thead>
+        <tr><th>Item</th><th class="right">Times</th><th class="right">Total</th></tr>
+      </thead>
+      <tbody>
+        ${sortedItems.map(i => `<tr>
+          <td>${i.display}</td>
+          <td class="right num">${i.count}</td>
+          <td class="right num">${fmt(i.total)}</td>
+        </tr>`).join("")}
+      </tbody>
+    </table>
+    <div class="muted" style="margin-top:12px">Click counts include every receipt occurrence. Amounts proportional to receipt totals.</div>
+  `;
+
+  openModal({title: `Food group: ${label}`, sub: "Grocery line items only", statsHtml: stats, bodyHtml: body});
+}
+
+// Drill into alcoholic vs non-alcoholic
+function showDrinks(kind) {
+  const items = (kind === "alcohol" ? FOOD.drinks.alcohol_items : FOOD.drinks.non_alcohol_items)
+    .slice().sort((a,b) => b.amount - a.amount);
+  const total = items.reduce((s,i) => s + i.amount, 0);
+
+  // Collapse by name
+  const collapsed = {};
+  items.forEach(it => {
+    const key = it.name.toLowerCase().trim();
+    if (!collapsed[key]) collapsed[key] = {display: it.name, count: 0, total: 0, locations: new Set()};
+    collapsed[key].count++;
+    collapsed[key].total += it.amount;
+    collapsed[key].locations.add(it.merchant);
+  });
+  const sorted = Object.values(collapsed).sort((a,b) => b.total - a.total);
+
+  const stats = `
+    <div class="modal-stat"><div class="v">${fmt(total)}</div><div class="l">${kind === "alcohol" ? "Alcohol" : "Non-alcoholic"}</div></div>
+    <div class="modal-stat"><div class="v">${items.length}</div><div class="l">Line items</div></div>
+    <div class="modal-stat"><div class="v">${sorted.length}</div><div class="l">Unique</div></div>
+  `;
+
+  const body = `<table>
+    <thead>
+      <tr><th>Item</th><th>Where</th><th class="right">Times</th><th class="right">Total</th></tr>
+    </thead>
+    <tbody>
+      ${sorted.map(i => `<tr>
+        <td>${i.display}</td>
+        <td class="muted">${[...i.locations].slice(0, 2).join(", ")}${i.locations.size > 2 ? "…" : ""}</td>
+        <td class="right num">${i.count}</td>
+        <td class="right num">${fmt(i.total)}</td>
+      </tr>`).join("")}
+    </tbody>
+  </table>`;
+
+  openModal({
+    title: kind === "alcohol" ? "Alcoholic drinks" : "Non-alcoholic drinks",
+    sub: "Eating out + drinks line items",
+    statsHtml: stats, bodyHtml: body,
+  });
+}
+
+// ---------- Calendar ----------
+
+function buildCalendar(rows) {
+  const byDay = {};
+  rows.forEach(e => {
+    const d = parseInt(e.date.slice(8, 10), 10);
+    byDay[d] = (byDay[d] || 0) + e.total;
+  });
+  const daysIn = DATA.days_in_month;
+  const firstWeekday = (new Date(DATA.year, DATA.month - 1, 1).getDay() + 6) % 7;
+  const cells = [];
+  for (let i = 0; i < firstWeekday; i++) cells.push({empty: true});
+  for (let d = 1; d <= daysIn; d++) cells.push({day: d, amt: byDay[d] || 0});
+  while (cells.length % 7) cells.push({empty: true});
+
+  const max = Math.max(...Object.values(byDay), 1);
+  const heads = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+    .map(h => `<div class="cal-head">${h}</div>`).join("");
+  const cellHtml = cells.map(c => {
+    if (c.empty) return `<div class="cal-cell empty"></div>`;
+    const intensity = c.amt / max;
+    const heavy = intensity > 0.55;
+    const bg = c.amt > 0
+      ? `background: rgba(249, 115, 22, ${0.08 + intensity * 0.78});`
+      : "";
+    let cls = "cal-cell";
+    if (heavy) cls += " heavy";
+    return `<div class="${cls}" style="${bg}" data-action="day" data-value="${c.day}">
+      <div class="cal-day">${c.day}</div>
+      ${c.amt > 0 ? `<div class="cal-amt">${fmtRound(c.amt)}</div>` : ""}
+    </div>`;
+  }).join("");
+  return `<div class="calendar">${heads}${cellHtml}</div>`;
+}
+
+function topMerchants(rows, n=10) {
+  const m = {};
+  rows.forEach(e => {
+    const k = displayMerchant(e);
+    if (!m[k]) m[k] = {total: 0, count: 0, cat: deriveCategory(e)};
+    m[k].total += e.total;
+    m[k].count++;
+  });
+  return Object.entries(m).sort((a,b) => b[1].total - a[1].total).slice(0, n);
+}
+
+let currentCharts = [];
+function destroyCharts() {
+  currentCharts.forEach(c => c.destroy());
+  currentCharts = [];
+}
+
+function renderTab() {
+  destroyCharts();
+  const tab = state.tab;
+  const tabRows = applyTabFilter(DATA.expenses, tab);
+  const filteredRows = tabRows;
+
+  const total = filteredRows.reduce((s,e) => s + e.total, 0);
+  const tabTotal = total;
+  const n = filteredRows.length;
+  const days = DATA.days_in_month;
+  const avgDay = total / days;
+  const avgTxn = n > 0 ? total / n : 0;
+  const biz = filteredRows.reduce((s,e) => s + (e.is_business ? e.total : 0), 0);
+  const personal = total - biz;
+
+  const byCat = groupBy(filteredRows, deriveCategory, e => e.total);
+  const byCard = groupBy(filteredRows, e => e.card || "Unknown", e => e.total);
+
+  const sortedCats = Object.entries(byCat).sort((a,b) => b[1] - a[1]);
+  const sortedCards = Object.entries(byCard).sort((a,b) => b[1] - a[1]);
+
+  let html = "";
+
+  if (tab === "daily") {
+    html += `<div class="notice">
+      Daily view excludes business expenses, travel/flights, and the quarterly Sanitas charge (€114.99).
+      Shows your true recurring monthly burn rate.
+    </div>`;
+  }
+  if (tab === "business") {
+    html += `<div class="notice">
+      Business view shows only items flagged as business expenses. Useful for tax / accounting.
+    </div>`;
+  }
+
+  // Stats
+  html += `<div class="grid grid-stats">
+    <div class="card"><h3>Total</h3><div class="stat-value">${fmt(total)}</div><div class="stat-sub">${n} transactions</div></div>
+    <div class="card"><h3>Per day</h3><div class="stat-value">${fmt(avgDay)}</div><div class="stat-sub">across ${days} days</div></div>
+    <div class="card"><h3>Per transaction</h3><div class="stat-value">${fmt(avgTxn)}</div></div>
+    <div class="card"><h3>${tab === "business" ? "Total business" : "Business / Personal"}</h3>
+      <div class="stat-value">${fmt(biz)}${tab !== "business" ? ` <span class="muted" style="font-size:14px">/ ${fmtRound(personal)}</span>` : ""}</div>
+      <div class="stat-sub">${tabTotal > 0 ? ((biz/tabTotal)*100).toFixed(0) : 0}% of ${tab}</div>
+    </div>
+  </div>`;
+
+  // Charts row
+  html += `<div class="section">
+    <div class="grid grid-3">
+      <div class="card">
+        <h3>Spend by category <span class="click-hint">click to open</span></h3>
+        <div class="canvas-wrap"><canvas id="catChart"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>By card <span class="click-hint">click to open</span></h3>
+        <div id="cardBars"></div>
+      </div>
+    </div>
+  </div>`;
+
+  // Calendar
+  html += `<div class="section">
+    <div class="card">
+      <h3>Daily spend calendar <span class="click-hint">click a day for that day's details</span></h3>
+      ${buildCalendar(filteredRows)}
+    </div>
+  </div>`;
+
+  // Daily timeline
+  html += `<div class="section">
+    <div class="card">
+      <h3>Daily timeline</h3>
+      <div class="canvas-wrap"><canvas id="timelineChart"></canvas></div>
+    </div>
+  </div>`;
+
+  // Top merchants only (top spending days removed per Liam)
+  html += `<div class="section">
+    <div class="card">
+      <h3>Top merchants <span class="click-hint">click a row for details</span></h3>
+      <table>
+        <thead><tr><th>Merchant</th><th>Category</th><th class="right">Visits</th><th class="right">Total</th></tr></thead>
+        <tbody>
+          ${topMerchants(filteredRows, 12).map(([m,v]) =>
+            `<tr class="clickable" data-action="merchant" data-value="${escapeAttr(m)}">
+              <td><strong>${escapeHtml(m)}</strong></td>
+              <td><span class="muted">${v.cat}</span></td>
+              <td class="right num">${v.count}</td>
+              <td class="right num">${fmt(v.total)}</td>
+            </tr>`
+          ).join("")}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+
+  // Food breakdown (skip on business tab; hide when drill filter active to avoid confusion)
+  if (tab !== "business" && Object.keys(FOOD.groups).length > 0) {
+    html += `<div class="section">
+      <div class="grid grid-2">
+        <div class="card">
+          <h3>Grocery food groups <span class="click-hint">click a bar for items</span></h3>
+          <div class="canvas-wrap"><canvas id="foodChart"></canvas></div>
+          <div class="muted" style="margin-top:8px">Item-level breakdown. Click a bar to see exactly what's inside.</div>
+        </div>
+        <div class="card">
+          <h3>Eating out + drinks <span class="click-hint">click a slice</span></h3>
+          <div class="canvas-wrap"><canvas id="drinksChart"></canvas></div>
+          ${FOOD.drinks.untyped > 0
+            ? `<div class="muted" style="margin-top:8px">${fmt(FOOD.drinks.untyped)} on receipts without itemised data — not classified.</div>`
+            : ""}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Transactions
+  html += `<div class="section">
+    <div class="card" id="txCard">
+      <div class="section-title">
+        <span>Transactions <span class="muted">(${n})</span></span>
+        <input class="search" id="txSearch" placeholder="Search merchant, note, category…">
+      </div>
+      <div class="table-scroll">
+      <table id="txTable">
+        <thead><tr>
+          <th class="sortable" data-sort="date">Date <span class="sort-arrow">↓</span></th>
+          <th class="sortable" data-sort="merchant">Merchant <span class="sort-arrow"></span></th>
+          <th class="sortable" data-sort="category">Category <span class="sort-arrow"></span></th>
+          <th class="sortable" data-sort="card">Card <span class="sort-arrow"></span></th>
+          <th class="sortable right" data-sort="total">Amount <span class="sort-arrow"></span></th>
+        </tr></thead>
+        <tbody id="txBody"></tbody>
+      </table>
+      </div>
+    </div>
+  </div>`;
+
+  document.getElementById("tab-content").innerHTML = html;
+
+  renderTransactionRows(filteredRows);
+  attachSortHandlers(filteredRows);
+
+  // Category donut
+  {
+    const labels = sortedCats.map(c => c[0]);
+    const values = sortedCats.map(c => c[1]);
+    const ctx = document.getElementById("catChart");
+    if (ctx) {
+      currentCharts.push(new Chart(ctx, {
+        type: "doughnut",
+        data: { labels,
+          datasets: [{ data: values, backgroundColor: PALETTE.slice(0, labels.length), borderColor: "#131316", borderWidth: 2 }]
+        },
+        options: {
+          maintainAspectRatio: false, cutout: "62%",
+          onClick: (evt, els) => {
+            if (els.length === 0) return;
+            const cat = labels[els[0].index];
+            showCategoryDetails(cat);
+          },
+          plugins: {
+            legend: { position: "right", labels: { color: "#9a9aa6", font: { size: 12 }, padding: 12, boxWidth: 12 } },
+            tooltip: { callbacks: { label: c => `${c.label}: ${fmt(c.parsed)} (${(c.parsed/total*100).toFixed(1)}%)` } }
+          }
+        }
+      }));
+    }
+  }
+
+  // Card bars
+  {
+    const wrap = document.getElementById("cardBars");
+    const max = Math.max(...sortedCards.map(c => c[1]), 1);
+    wrap.innerHTML = sortedCards.map(([name, val]) => `
+      <div class="bar-row" data-action="card" data-value="${escapeAttr(name)}">
+        <div class="bar-label">${escapeHtml(name)}</div>
+        <div class="bar-track"><div class="bar-fill" style="width: ${(val/max*100).toFixed(1)}%"></div></div>
+        <div class="bar-val">${fmt(val)}</div>
+      </div>
+    `).join("");
+  }
+
+  // Daily timeline
+  {
+    const byDay = {};
+    filteredRows.forEach(e => {
+      const d = parseInt(e.date.slice(8,10), 10);
+      byDay[d] = (byDay[d] || 0) + e.total;
+    });
+    const labels = [];
+    const values = [];
+    const rolling = [];
+    for (let d = 1; d <= days; d++) {
+      labels.push(d);
+      values.push(byDay[d] || 0);
+    }
+    for (let i = 0; i < values.length; i++) {
+      const w = values.slice(Math.max(0, i-6), i+1);
+      rolling.push(w.reduce((a,b) => a+b, 0) / w.length);
+    }
+    const ctx = document.getElementById("timelineChart");
+    if (ctx) {
+      currentCharts.push(new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [
+            { type: "bar", label: "Daily spend", data: values, backgroundColor: "#f97316", borderRadius: 3, order: 2 },
+            { type: "line", label: "7-day rolling avg", data: rolling, borderColor: "#60a5fa", backgroundColor: "#60a5fa",
+               tension: 0.35, pointRadius: 0, borderWidth: 2, order: 1 }
+          ]
+        },
+        options: {
+          maintainAspectRatio: false,
+          onClick: (evt, els) => {
+            if (els.length === 0) return;
+            const day = labels[els[0].index];
+            showDayDetails(day);
+          },
+          plugins: {
+            legend: { labels: { color: "#9a9aa6", boxWidth: 14 } },
+            tooltip: { callbacks: { label: c => `${c.dataset.label}: ${fmt(c.parsed.y)}` } }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: "#5c5c66" } },
+            y: { grid: { color: "#26262d" }, ticks: { color: "#5c5c66", callback: v => fmtRound(v) } }
+          }
+        }
+      }));
+    }
+  }
+
+  if (tab !== "business" && Object.keys(FOOD.groups).length > 0) {
+    const sortedFood = Object.entries(FOOD.groups).sort((a,b) => b[1] - a[1]);
+    const ctx = document.getElementById("foodChart");
+    if (ctx) {
+      currentCharts.push(new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: sortedFood.map(([k]) => FOOD.labels[k] || k),
+          datasets: [{
+            data: sortedFood.map(([,v]) => v),
+            backgroundColor: PALETTE.slice(0, sortedFood.length),
+            borderRadius: 4
+          }]
+        },
+        options: {
+          indexAxis: "y", maintainAspectRatio: false,
+          onClick: (evt, els) => {
+            if (els.length === 0) return;
+            const groupKey = sortedFood[els[0].index][0];
+            showFoodGroup(groupKey);
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: c => fmt(c.parsed.x) } }
+          },
+          scales: {
+            x: { grid: { color: "#26262d" }, ticks: { color: "#5c5c66", callback: v => fmtRound(v) } },
+            y: { grid: { display: false }, ticks: { color: "#9a9aa6" } }
+          }
+        }
+      }));
+    }
+
+    const dctx = document.getElementById("drinksChart");
+    if (dctx) {
+      currentCharts.push(new Chart(dctx, {
+        type: "doughnut",
+        data: {
+          labels: ["Alcoholic", "Non-alcoholic"],
+          datasets: [{
+            data: [FOOD.drinks.alcohol, FOOD.drinks.non_alcohol],
+            backgroundColor: ["#f87171", "#4ade80"],
+            borderColor: "#131316", borderWidth: 2
+          }]
+        },
+        options: {
+          maintainAspectRatio: false, cutout: "62%",
+          onClick: (evt, els) => {
+            if (els.length === 0) return;
+            showDrinks(els[0].index === 0 ? "alcohol" : "non_alcohol");
+          },
+          plugins: {
+            legend: { position: "right", labels: { color: "#9a9aa6", padding: 12 } },
+            tooltip: { callbacks: { label: c => `${c.label}: ${fmt(c.parsed)}` } }
+          }
+        }
+      }));
+    }
+  }
+
+  const search = document.getElementById("txSearch");
+  if (search) {
+    search.addEventListener("input", () => {
+      const q = search.value.toLowerCase();
+      document.querySelectorAll("#txBody tr").forEach(tr => {
+        tr.style.display = tr.textContent.toLowerCase().includes(q) ? "" : "none";
+      });
+    });
+  }
+}
+
+function renderTransactionRows(rows) {
+  const sorted = rows.slice().sort((a,b) => {
+    const k = state.sortKey;
+    let av, bv;
+    if (k === "date") { av = a.date; bv = b.date; }
+    else if (k === "merchant") { av = displayMerchant(a).toLowerCase(); bv = displayMerchant(b).toLowerCase(); }
+    else if (k === "category") { av = deriveCategory(a); bv = deriveCategory(b); }
+    else if (k === "card") { av = a.card || ""; bv = b.card || ""; }
+    else if (k === "total") { av = a.total; bv = b.total; }
+    if (av < bv) return state.sortDir === "asc" ? -1 : 1;
+    if (av > bv) return state.sortDir === "asc" ? 1 : -1;
+    return 0;
+  });
+  const body = document.getElementById("txBody");
+  if (!body) return;
+  body.innerHTML = sorted.map(e => {
+    const cat = deriveCategory(e);
+    let tagCls = "tag";
+    if (e.is_business) tagCls = "tag tag-biz";
+    else if (e.category === "Travel") tagCls = "tag tag-travel";
+    const merch = displayMerchant(e);
+    const note = e.note ? ` <span class="muted">(${escapeHtml(e.note)})</span>` : "";
+    return `<tr class="clickable" data-action="merchant" data-value="${escapeAttr(merch)}">
+      <td class="num">${e.date.slice(0,10)}</td>
+      <td>${escapeHtml(merch)}${note}</td>
+      <td><span class="${tagCls}" data-action="category" data-value="${escapeAttr(cat)}">${escapeHtml(cat)}</span></td>
+      <td>${escapeHtml(e.card || "")}</td>
+      <td class="right num">${fmt(e.total)}</td>
+    </tr>`;
+  }).join("");
+
+  // Update sort arrow indicators
+  document.querySelectorAll("th.sortable").forEach(th => {
+    const k = th.dataset.sort;
+    const arrow = th.querySelector(".sort-arrow");
+    if (k === state.sortKey) {
+      th.classList.add("active");
+      arrow.textContent = state.sortDir === "asc" ? "↑" : "↓";
+    } else {
+      th.classList.remove("active");
+      arrow.textContent = "";
+    }
+  });
+}
+
+function attachSortHandlers(rows) {
+  document.querySelectorAll("th.sortable").forEach(th => {
+    th.addEventListener("click", () => {
+      const k = th.dataset.sort;
+      if (state.sortKey === k) {
+        state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+      } else {
+        state.sortKey = k;
+        state.sortDir = (k === "date" || k === "total") ? "desc" : "asc";
+      }
+      renderTransactionRows(rows);
+    });
+  });
+}
+
+// ---------- Tab counts ----------
+
+document.getElementById("count-everything").textContent = applyTabFilter(DATA.expenses, "everything").length;
+document.getElementById("count-business").textContent = applyTabFilter(DATA.expenses, "business").length;
+document.getElementById("count-daily").textContent = applyTabFilter(DATA.expenses, "daily").length;
+
+// ---------- Tab switching ----------
+
+document.querySelectorAll(".tab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    state.tab = btn.dataset.tab;
+    renderTab();
+  });
+});
+
+// Delegated click handler — every clickable element opens a popup
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-action]");
+  if (!t) return;
+  const action = t.dataset.action;
+  const v = t.dataset.value;
+  if (action === "merchant") showMerchant(v);
+  else if (action === "category") {
+    e.stopPropagation();
+    showCategoryDetails(v);
+  }
+  else if (action === "card") showCardDetails(v);
+  else if (action === "day") showDayDetails(parseInt(v, 10));
+  else if (action === "search-items") openItemSearch();
+});
+
+renderTab();
+</script>
+</body>
+</html>
