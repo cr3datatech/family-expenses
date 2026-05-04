@@ -10,13 +10,11 @@ AI-powered expense tracker with receipt scanning. Snap or upload a photo of your
 - **Scanned page** — Full-screen panel (menu → **Scanned**) showing every receipt image in the archive. Images are grouped into **Attached** (linked to an expense) and **Orphaned** (not linked), each sorted newest first by expense date (attached) or scan date (orphaned). Actions on each card: **Attach** / **Reassign** (pick any expense), **Detach** (move back to orphaned), or **Delete** (orphaned only). All changes update the UI in real time without a page refresh.
 - **Upload / Scan on Scanned page** — A sticky header bar lets you add images directly to the orphaned pool. On mobile both **Upload** (file picker) and **Scan** (rear camera) are shown side-by-side; on desktop only **Upload** is shown.
 - **Manual entry** — Full form matching the scan review: date, merchant, category (dropdown), line items (name × qty × unit price), total, payment type, note.
-- **Shared & personal expenses** — Expenses are shared by default (split equally among sharing users). Any expense can instead be attributed to a specific user as a personal expense. When viewing shared expenses, each row shows the per-person share alongside the full total.
+- **Shared & personal expenses** — Expenses are shared by default (split equally among sharing users). Any expense can instead be attributed to a specific user as a personal expense. Shared expense cards show the full total as the primary amount, with a "Shared ÷N" badge and a secondary line showing the per-person share (e.g. `÷2 · €12.00 ea`).
 - **Date presets** — The front page expense list and summary can be filtered by Month / 3 months / Year / All time.
 - **Search** — Full-text search across merchant, category, date, card, note, and line items. Results open directly in the edit modal.
-- **Personal page** — Per-user view with date presets (month / 3 months / year / all time). Filter by personal expenses (your own or other users') and shared expenses; the "Shared among" sub-filter shows only expenses shared among all selected users. Displays a "Your share" total that divides shared expense totals by the number of sharing users.
-- **All Expenses** — Full expense history across all users, grouped by month, with the same user/shared filters and "Your share" summary. Defaults to all time.
 - **Edit & delete** — Edit any field (including date and attribution); delete requires confirmation. Deleting an expense never removes its receipt images — they become orphaned and remain accessible on the Scanned page. Superuser only.
-- **Charts / Analytics** — Date-range overview (month / 3 months / year / all time) with spend by category (bar chart), top merchants, by-month table, filterable category list with multi-select and combined totals, and a searchable item drill-down. Categories, merchants, and months are clickable and open a drill-down list of matching expenses (each editable).
+- **Reports** — Full analytics overlay (menu → **Reports**). Pick a year and one or more months, then filter by person (personal expenses per user) or shared (with a "Shared among" sub-filter to match specific users). Includes: summary stats (total, per-day, avg transaction, count), a daily spend calendar heatmap (single-month view, click a day for a drill-down), spend by category with interactive exclude toggles, spend by card, top merchants, and a top items list. Category and merchant rows are clickable and open a drill-down list of matching expenses. A "View all transactions" button shows every expense in the period, grouped by month and searchable. All individual expense cards in drill-downs and the transactions list are clickable to open the edit form. Shared expense cards show the full total with per-person breakdown underneath.
 - **AI Costs** — Dedicated page (menu → **AI Costs**) showing the total OpenAI spend and a monthly breakdown. Each month shows the highest- and lowest-cost expense (clickable to open the full edit modal). Costs are recorded per scan and only shown when a real value exists. Expense cards across all views (home, Personal, All Expenses, chart drill-downs) show the AI cost when present.
 - **Password reset** — Login page has a "Forgot password?" link. The app emails a one-time reset link (valid 1 hour) to the user's registered address. Requires SMTP credentials in `.env`. The reset link opens the app and prompts for a new password, then signs the user in automatically.
 - **User management** — Superusers can create, edit (username, password, email, superuser flag), and delete users from a dedicated panel.
@@ -442,15 +440,15 @@ family-expenses/
         LoginForm.tsx         # includes inline ForgotPasswordForm
         ResetPasswordForm.tsx
       expenses/
-        AllExpensesPanel.tsx
         AttributionPicker.tsx
         EditExpenseForm.tsx
         ExpensePickerModal.tsx
         ExpensesPage.tsx
         ManualEntryForm.tsx
-        PersonalPanel.tsx
         ReceiptReviewForm.tsx
         SearchModal.tsx
+      reports/
+        ReportsPanel.tsx
       layout/
         HeaderMenu.tsx
       scanning/
