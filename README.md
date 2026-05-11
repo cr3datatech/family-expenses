@@ -331,7 +331,7 @@ Examples:
 ```
 20260412_groceries_supermarket_alice.jpg
 20260411_eating_out_restaurant_bob.jpg
-20260408_coffee_cafe_alice.jpg
+20260408_garden_nursery_alice.jpg
 ```
 
 - **`yyyymmdd`** — purchase date from the receipt (not upload timestamp)
@@ -459,6 +459,7 @@ family-expenses/
         FormField.tsx
     lib/
       api.ts
+      categories.ts              # shared CATEGORIES list (single source of truth)
       dates.ts
     next.config.ts            # static export → out/
   frontend/out/               # produced by `npm run build` (not always in git)
