@@ -2,15 +2,10 @@
 
 import { useState, useRef } from "react";
 import { api, Expense, ExpenseCreate, User } from "@/lib/api";
+import { CATEGORIES } from "@/lib/categories";
 import FormField from "@/components/shared/FormField";
 import AttributionPicker from "@/components/expenses/AttributionPicker";
 import ScannedImagePickerModal from "@/components/scanning/ScannedImagePickerModal";
-
-const CATEGORIES = [
-  "Groceries", "Eating Out", "Transport", "Entertainment", "Health",
-  "Utilities", "Shopping", "Subscriptions", "Travel", "Coffee",
-  "Household", "Rent", "Car", "Investments", "Insurance", "Gifts", "Education", "Loan", "Other",
-];
 
 export default function EditExpenseForm({
   cards, expense, onSubmit, onCancel, onDelete, currentUser, allUsers,

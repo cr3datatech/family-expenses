@@ -3,14 +3,9 @@
 import { useState } from "react";
 import { todayISO } from "@/lib/dates";
 import { api, Expense, ExpenseCreate, ReceiptScanResult, User } from "@/lib/api";
+import { CATEGORIES } from "@/lib/categories";
 import FormField from "@/components/shared/FormField";
 import AttributionPicker from "@/components/expenses/AttributionPicker";
-
-const CATEGORIES = [
-  "Groceries", "Eating Out", "Transport", "Entertainment", "Health",
-  "Utilities", "Shopping", "Subscriptions", "Travel", "Coffee",
-  "Household", "Rent", "Car", "Investments", "Insurance", "Gifts", "Education", "Loan", "Other",
-];
 
 export default function ReceiptReviewForm({
   cards, scanResult, onSubmit, onCancel, currentUser, allUsers,

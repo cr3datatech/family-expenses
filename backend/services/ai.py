@@ -83,7 +83,7 @@ def scan_receipt(image_data: bytes, media_type: str) -> dict:
         '"items" (array of {"name": string, "qty": number, "unit_price": float, "amount": float}), '
         '"total" (float), '
         '"category" (string, Title Case - prefer these: Groceries, Eating Out, Transport, Entertainment, '
-        "Health, Utilities, Shopping, Subscriptions, Travel, Coffee, Household, Rent, Car, "
+        "Health, Hobby, Utilities, Shopping, Subscriptions, Travel, Garden, Household, Rent, Car, "
         "Investments, Insurance, Gifts, Education, Other. "
         'Use "Eating Out" for all restaurants/cafes/takeaway, never "Dining"). '
         "Group identical items into one entry with the correct qty. "
@@ -156,7 +156,7 @@ def categorize_expense(description: str) -> str:
                 "content": (
                     f"Categorize this expense in 1-2 words, Title Case. "
                     f"Prefer these categories: Groceries, Eating Out, Transport, Entertainment, "
-                    f"Health, Utilities, Shopping, Subscriptions, Travel, Coffee, Household, "
+                    f"Health, Hobby, Utilities, Shopping, Subscriptions, Travel, Garden, Household, "
                     f"Rent, Car, Investments, Insurance, Gifts, Education, Other. "
                     f'Use "Eating Out" for all restaurants/cafes/takeaway (never "Dining" or "Restaurant"). '
                     f"You may create a new category if none fit, but keep it Title Case and consistent. "
