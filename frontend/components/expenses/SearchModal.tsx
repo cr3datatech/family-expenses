@@ -24,6 +24,12 @@ export default function SearchModal({ query, results, loading, onQueryChange, on
         <p className="text-xs text-skin-secondary text-center py-2">No results.</p>
       )}
       {results.length > 0 && (
+        <div className="flex justify-between items-center px-1 pb-1">
+          <span className="text-xs text-skin-secondary">{results.length} result{results.length !== 1 ? "s" : ""}</span>
+          <span className="text-sm font-bold text-snap-700">€{results.reduce((sum, e) => sum + e.total, 0).toFixed(2)}</span>
+        </div>
+      )}
+      {results.length > 0 && (
         <div className="max-h-[60vh] overflow-y-auto -mx-1 px-1 space-y-1">
           {results.map((exp) => (
             <button
